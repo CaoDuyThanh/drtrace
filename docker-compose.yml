@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: drtrace-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-drtrace}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - drtrace_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  drtrace-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: drtrace-init
+    environment:
+      DRTRACE_DATABASE_URL: ${DRTRACE_DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-drtrace}}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: python scripts/init_db.py
+    restart: "no"
+
+  drtrace-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: drtrace-api
+    environment:
+      DRTRACE_DATABASE_URL: ${DRTRACE_DATABASE_URL:-postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-drtrace}}
+      DRTRACE_HOST: ${DRTRACE_HOST:-0.0.0.0}
+      DRTRACE_PORT: ${DRTRACE_PORT:-8001}
+      DRTRACE_RETENTION_DAYS: ${DRTRACE_RETENTION_DAYS:-7}
+    ports:
+      - "${DRTRACE_PORT:-8001}:8001"
+    volumes:
+      # Mount source code for code context retrieval (read-only)
+      - ./packages/python/src:/app/src:ro
+      - ./scripts:/app/scripts:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/status"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  drtrace_postgres_data:
+    driver: local
+

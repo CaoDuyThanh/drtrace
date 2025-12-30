@@ -1,0 +1,7 @@
+build/
+*.o
+*.a
+*.so
+*.dylib
+minimal_cpp_app
+

@@ -1,0 +1,61 @@
+{
+  "name": "drtrace",
+  "version": "0.2.0",
+  "description": "DrTrace JavaScript/TypeScript client",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "drtrace": "dist/bin/init.js"
+  },
+  "scripts": {
+    "prebuild": "node scripts/copy-agents.js",
+    "build": "tsc && mkdir -p dist/bin && cp bin/init.js dist/bin/init.js && chmod +x dist/bin/init.js && mkdir -p dist/resources/agents && (cp -r agents/* dist/resources/agents/ 2>/dev/null || true) && (cp -r ../../../agents/integration-guides/* dist/resources/agents/integration-guides/ 2>/dev/null || true) && mkdir -p dist/resources/cpp && cp ../../../packages/cpp/drtrace-client/src/drtrace_sink.hpp dist/resources/cpp/ 2>/dev/null || true",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "prepare": "npm run build"
+  },
+  "dependencies": {
+    "prompts": "^2.4.2",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.0.0",
+    "@types/node": "^20.0.0",
+    "@types/prompts": "^2.4.9",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "prettier": "^3.0.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "drtrace",
+    "logging",
+    "analysis",
+    "error-tracking",
+    "debugging"
+  ],
+  "author": "DrTrace Team",
+  "license": "MIT",
+  "files": [
+    "dist/",
+    "agents/",
+    "bin/",
+    "resources/"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/example/drtrace.git",
+    "directory": "packages/javascript/drtrace-client"
+  }
+}
