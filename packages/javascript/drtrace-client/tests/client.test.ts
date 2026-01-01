@@ -1,4 +1,4 @@
-import { DrTrace } from '../src/client';
+import { DrTrace } from '../src/node';
 import { loadConfig } from '../src/config';
 
 jest.mock('../src/config', () => {

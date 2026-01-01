@@ -22,6 +22,9 @@ class DummyTimeSeriesStorage(storage_mod.LogStorage):  # type: ignore[misc]
     application_id: Optional[str] = None,
     module_name: Optional[Any] = None,
     service_name: Optional[Any] = None,
+    message_contains: Optional[str] = None,
+    min_level: Optional[str] = None,
+    after_cursor: Optional[Any] = None,
     limit: int = 100,
   ) -> List[LogRecord]:  # pragma: no cover - trivial
     results: List[LogRecord] = []
@@ -44,6 +47,19 @@ class DummyTimeSeriesStorage(storage_mod.LogStorage):  # type: ignore[misc]
         else:
           if r.service_name != service_name:
             continue
+      if message_contains:
+        if message_contains.lower() not in (r.message or "").lower():
+          continue
+      if min_level:
+        level_order = {"DEBUG": 0, "INFO": 1, "WARN": 2, "WARNING": 2, "ERROR": 3, "CRITICAL": 4}
+        min_order = level_order.get(min_level.upper(), 0)
+        record_order = level_order.get((r.level or "").upper(), 0)
+        if record_order < min_order:
+          continue
+      if after_cursor:
+        cursor_ts = after_cursor.get("ts")
+        if cursor_ts is not None and r.ts >= cursor_ts:
+          continue
       results.append(r)
     # sort DESC by ts like real storage
     results.sort(key=lambda r: r.ts, reverse=True)

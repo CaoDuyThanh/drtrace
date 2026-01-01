@@ -25,7 +25,7 @@ describe('LogQueue', () => {
     const queue = new LogQueue({ transport, batchSize: 3, flushIntervalMs: 1000 });
     queue.start();
 
-    const mk = (msg: string): LogEvent => ({ timestamp: new Date().toISOString(), applicationId: 'app', level: 'info', message: msg });
+    const mk = (msg: string): LogEvent => ({ ts: Date.now() / 1000, application_id: 'app', module_name: 'default', level: 'info', message: msg });
     queue.push(mk('a'));
     queue.push(mk('b'));
     expect(transport.sent.length).toBe(0);
@@ -40,7 +40,7 @@ describe('LogQueue', () => {
     const queue = new LogQueue({ transport, batchSize: 10, flushIntervalMs: 500 });
     queue.start();
 
-    const mk = (msg: string): LogEvent => ({ timestamp: new Date().toISOString(), applicationId: 'app', level: 'info', message: msg });
+    const mk = (msg: string): LogEvent => ({ ts: Date.now() / 1000, application_id: 'app', module_name: 'default', level: 'info', message: msg });
     queue.push(mk('x'));
 
     // Advance timers to trigger scheduled flush
@@ -59,7 +59,7 @@ describe('LogQueue', () => {
     const queue = new LogQueue({ transport, batchSize: 100, flushIntervalMs: 1000, maxQueueSize: 2 });
     queue.start();
 
-    const mk = (msg: string): LogEvent => ({ timestamp: new Date().toISOString(), applicationId: 'app', level: 'info', message: msg });
+    const mk = (msg: string): LogEvent => ({ ts: Date.now() / 1000, application_id: 'app', module_name: 'default', level: 'info', message: msg });
     queue.push(mk('a'));
     queue.push(mk('b'));
     queue.push(mk('c')); // exceeds maxQueueSize

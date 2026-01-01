@@ -23,7 +23,7 @@ This runs an interactive setup wizard that creates the `_drtrace/` configuration
 - Configuration guide (`README.md`)
 - Default agent specification
 
-### Manual Client Integration
+### Node.js Usage
 
 ```typescript
 import { DrTrace } from 'drtrace';
@@ -39,7 +39,6 @@ const client = DrTrace.init();
 //   flushIntervalMs: 1000,
 //   maxRetries: 3,
 //   maxQueueSize: 10000,
-//   timeoutMs: 5000,
 // });
 
 // Attach to console
@@ -48,6 +47,48 @@ client.attachToConsole();
 // Logs are now automatically sent to the DrTrace daemon
 console.log('This is captured by DrTrace');
 console.error('Errors are also captured');
+```
+
+### Browser Usage (React, Vue, etc.)
+
+In browser environments, you must provide `applicationId` and `daemonUrl` explicitly since the browser cannot read config files from the filesystem.
+
+```typescript
+import { DrTrace } from 'drtrace';  // Auto-selects browser entry point
+
+// Browser requires explicit options (no config file loading)
+const client = DrTrace.init({
+  applicationId: 'my-react-app',
+  daemonUrl: 'http://localhost:8001',
+  moduleName: 'frontend',  // Optional: helps identify log source
+  batchSize: 50,
+  flushIntervalMs: 1000,
+});
+
+// Attach to console
+client.attachToConsole();
+
+// Objects are serialized properly
+console.log({ user: 'john', action: 'login' });  // Logs as JSON
+console.error('Something went wrong', new Error('Details'));
+```
+
+**Important for Browser:**
+- `applicationId` is **required** - throws error if missing
+- `daemonUrl` is **required** - throws error if missing
+- CORS must be enabled on the daemon (enabled by default)
+- Objects and errors are automatically serialized to JSON
+
+#### CORS Configuration
+
+The DrTrace daemon allows all origins by default. To restrict origins:
+
+```bash
+# Allow specific origins
+export DRTRACE_CORS_ORIGINS="http://localhost:3000,https://myapp.com"
+
+# Start daemon
+uvicorn drtrace_service.api:app --host localhost --port 8001
 ```
 
 ## Starting the DrTrace Daemon
@@ -155,13 +196,13 @@ Create a new DrTrace client instance.
 
 **Options:**
 - `applicationId` (required) - Unique application identifier
-- `daemonUrl` (optional) - DrTrace daemon URL (default: `http://localhost:8001`)
+- `daemonUrl` (required in browser, optional in Node.js) - DrTrace daemon URL (default: `http://localhost:8001`)
+- `moduleName` (optional) - Module/component name for log grouping (default: `'default'`)
 - `enabled` (optional) - Enable/disable DrTrace (default: `true`)
 - `batchSize` (optional) - Batch size for log batching (default: `50`)
 - `flushIntervalMs` (optional) - Flush interval in milliseconds (default: `1000`)
 - `maxRetries` (optional) - Retry attempts for failed sends with exponential backoff (default: `3`)
 - `maxQueueSize` (optional) - Maximum queued log entries before oldest entries are dropped (default: `10000`)
-- `timeoutMs` (optional) - Request timeout per batch in milliseconds (default: `5000`)
 
 ### `client.attachToConsole()`
 

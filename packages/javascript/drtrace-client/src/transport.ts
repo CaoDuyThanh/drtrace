@@ -1,4 +1,4 @@
-import type { LogEvent } from './types';
+import type { LogEvent, LogBatch } from './types';
 
 const DEFAULT_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_RETRIES = 3;
@@ -19,7 +19,11 @@ export class Transport {
   async sendBatch(events: LogEvent[]): Promise<void> {
     if (events.length === 0) return;
     const url = `${this.daemonUrl}/logs/ingest`;
-    const payload = { logs: events };
+    // Wrap batch with application_id at top level as required by daemon API
+    const payload: LogBatch = {
+      application_id: events[0].application_id,
+      logs: events,
+    };
 
     const fetchImpl: typeof fetch | undefined = (globalThis as any).fetch;
     if (!fetchImpl) return; // Non-blocking skip

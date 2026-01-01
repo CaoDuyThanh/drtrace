@@ -31,6 +31,9 @@ class QueryableStorage(storage_mod.LogStorage):  # type: ignore[misc]
         application_id: Optional[str] = None,
         module_name: Optional[Any] = None,
         service_name: Optional[Any] = None,
+        message_contains: Optional[str] = None,
+        min_level: Optional[str] = None,
+        after_cursor: Optional[Any] = None,
         limit: int = 100,
     ) -> List[LogRecord]:
         """Query records matching all criteria."""
@@ -58,6 +61,22 @@ class QueryableStorage(storage_mod.LogStorage):  # type: ignore[misc]
                 else:
                     if record.service_name != service_name:
                         continue
+            # Message contains filter
+            if message_contains:
+                if message_contains.lower() not in (record.message or "").lower():
+                    continue
+            # Min level filter
+            if min_level:
+                level_order = {"DEBUG": 0, "INFO": 1, "WARN": 2, "WARNING": 2, "ERROR": 3, "CRITICAL": 4}
+                min_order = level_order.get(min_level.upper(), 0)
+                record_order = level_order.get((record.level or "").upper(), 0)
+                if record_order < min_order:
+                    continue
+            # Cursor filter
+            if after_cursor:
+                cursor_ts = after_cursor.get("ts")
+                if cursor_ts is not None and record.ts >= cursor_ts:
+                    continue
             results.append(record)
         # Sort by timestamp descending (newest first)
         results.sort(key=lambda r: r.ts, reverse=True)

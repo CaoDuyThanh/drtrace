@@ -23,6 +23,8 @@ class ProjectInitializer:
         self.project_root = project_root or Path.cwd()
         self.drtrace_dir = self.project_root / "_drtrace"
         self.config_path = self.drtrace_dir / "config.json"
+        # Track copied agent files for summary display
+        self.copied_agent_files: list = []
 
     def prompt_text(self, prompt: str, default: Optional[str] = None) -> str:
         """Prompt for text input."""
@@ -277,7 +279,8 @@ class ProjectInitializer:
                         import tempfile
                         import shutil as shutil_module
                         with resources.as_file(agents_path) as agents_dir_path:
-                            self._copy_agents_recursive(Path(agents_dir_path), self.drtrace_dir / "agents")
+                            copied = self._copy_agents_recursive(Path(agents_dir_path), self.drtrace_dir / "agents")
+                            self.copied_agent_files.extend(copied)
                         return
             except (AttributeError, FileNotFoundError, TypeError) as e:
                 # TypeError can occur if as_file() doesn't work with directories
@@ -286,7 +289,8 @@ class ProjectInitializer:
             # Method 2: Fallback to pkg_resources (Python 3.8)
             try:
                 agents_dir = pkg_resources.resource_filename('drtrace_service.resources', 'agents')
-                self._copy_agents_recursive(Path(agents_dir), self.drtrace_dir / "agents")
+                copied = self._copy_agents_recursive(Path(agents_dir), self.drtrace_dir / "agents")
+                self.copied_agent_files.extend(copied)
                 return
             except Exception:
                 pass
@@ -294,7 +298,8 @@ class ProjectInitializer:
             # Method 3: Try development mode (monorepo)
             root_agents_dir = Path(os.getcwd()) / "agents"
             if root_agents_dir.exists():
-                self._copy_agents_recursive(root_agents_dir, self.drtrace_dir / "agents")
+                copied = self._copy_agents_recursive(root_agents_dir, self.drtrace_dir / "agents")
+                self.copied_agent_files.extend(copied)
                 return
 
             print("⚠️  Could not find agents directory in package or development mode")
@@ -332,11 +337,15 @@ class ProjectInitializer:
         if copied_count > 0:
             print(f"✓ Successfully copied {copied_count} file(s) from agents/")
 
-    def _copy_agents_recursive(self, source_dir: Path, target_dir: Path) -> None:
-        """Recursively copy all files from source_dir to target_dir."""
+    def _copy_agents_recursive(self, source_dir: Path, target_dir: Path) -> list:
+        """Recursively copy all files from source_dir to target_dir.
+
+        Returns:
+            List of relative paths of copied files (for summary display).
+        """
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        copied_count = 0
+        copied_files = []
         for source_file in source_dir.rglob("*"):
             # Skip directories
             if source_file.is_dir():
@@ -344,20 +353,22 @@ class ProjectInitializer:
 
             # Calculate relative path from source_dir
             relative_path = source_file.relative_to(source_dir)
-            
+
             # Determine target file (no renaming needed - files are already named correctly)
             target_file = target_dir / relative_path
-            
+
             # Create parent directories if needed
             target_file.parent.mkdir(parents=True, exist_ok=True)
 
             # Copy file
             target_file.write_bytes(source_file.read_bytes())
-            copied_count += 1
+            copied_files.append(str(relative_path))
             print(f"✓ Copied {relative_path}")
 
-        if copied_count > 0:
-            print(f"✓ Successfully copied {copied_count} file(s) from agents/")
+        if copied_files:
+            print(f"✓ Successfully copied {len(copied_files)} file(s) from agents/")
+
+        return copied_files
 
     def _load_agent_spec(self, agent_name: str) -> str:
         """Load agent spec from root agents/ directory or fallback to packaged resources.
@@ -739,14 +750,16 @@ config = ConfigSchema.load(Path("_drtrace/config.json"))
         print(f"   • {self.drtrace_dir / '.env.example'}")
         print(f"   • {self.drtrace_dir / 'README.md'}")
 
-        if config.get("agent", {}).get("enabled"):
-            agents = ["log-analysis", "log-it", "log-init", "log-help"]
-            for agent in agents:
-                print(f"   • {self.drtrace_dir / 'agents' / f'{agent}.md'}")
+        # List all copied agent files (includes integration-guides/)
+        if self.copied_agent_files:
+            print("\n📋 Agent Files:")
+            for agent_file in sorted(self.copied_agent_files):
+                print(f"   • {self.drtrace_dir / 'agents' / agent_file}")
 
         # For C++ language, surface the header-only C++ client header
         if config.get("language") in ("cpp", "both"):
             header_path = self.project_root / "third_party" / "drtrace" / "drtrace_sink.hpp"
+            print(f"\n📋 C++ Files:")
             print(f"   • {header_path}  (C++ header-only client)")
 
         print("\n📖 Next Steps:")

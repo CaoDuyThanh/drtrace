@@ -194,9 +194,90 @@ This:
   - The DrTrace handler respects logger levels; set your application/root logger to `INFO` (or lower) to emit INFO records.
   - Setting `DRTRACE_ENABLED=0/false/no` disables the handler entirely if you need to silence analysis output.
 
-- **Python version / dependencies**  
+- **Python version / dependencies**
   - Ensure you are using Python 3.8+ in a clean virtual environment.
   - Install dependencies via:
     - `pip install -r packages/python/requirements.txt`
+
+## Version Management & Release
+
+DrTrace uses a single `VERSION` file at the project root as the source of truth for all package versions.
+
+### Current Version
+
+```bash
+cat VERSION
+# 0.2.0
+```
+
+### Version Sync
+
+After editing `VERSION`, sync all packages:
+
+```bash
+make version-sync
+```
+
+This updates:
+- `packages/javascript/drtrace-client/package.json`
+- `packages/python/pyproject.toml`
+- `packages/cpp/drtrace-client/src/drtrace_sink.hpp` (`#define DRTRACE_VERSION`)
+
+### Version Bump
+
+```bash
+make version-bump-patch  # 0.2.0 → 0.2.1
+make version-bump-minor  # 0.2.0 → 0.3.0
+make version-bump-major  # 0.2.0 → 1.0.0
+```
+
+Each command updates `VERSION` and runs `make version-sync` automatically.
+
+### Publishing
+
+#### npm (JavaScript)
+
+```bash
+# Dry run (verify without publishing)
+./scripts/publish-npm.sh --dry-run
+
+# Publish to npm
+./scripts/publish-npm.sh
+```
+
+#### PyPI (Python)
+
+```bash
+# Dry run
+./scripts/publish-pypi.sh --dry-run
+
+# Publish to TestPyPI first
+./scripts/publish-pypi.sh --test-pypi
+
+# Publish to PyPI
+./scripts/publish-pypi.sh
+```
+
+### Build Verification
+
+Before releasing, verify all packages build successfully:
+
+```bash
+# JavaScript
+cd packages/javascript/drtrace-client
+npm run build
+npm test
+
+# Python
+cd packages/python
+python -m build
+pytest tests/
+
+# C++
+cd packages/cpp/drtrace-client
+mkdir -p build && cd build
+cmake .. && make
+ctest
+```
 
 

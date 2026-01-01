@@ -3,11 +3,18 @@
   "version": "0.3.0",
   "description": "DrTrace JavaScript/TypeScript client",
   "main": "dist/index.js",
+  "browser": "dist/browser.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
+      "browser": "./dist/browser.js",
+      "node": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./browser": {
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
     }
   },
   "bin": {
@@ -45,7 +52,10 @@
     "error-tracking",
     "debugging"
   ],
-  "author": "DrTrace Team",
+  "author": {
+    "name": "Thanh Cao",
+    "email": "caoduythanhcantho@gmail.com"
+  },
   "license": "MIT",
   "files": [
     "dist/",
@@ -55,7 +65,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/example/drtrace.git",
+    "url": "git+https://github.com/CaoDuyThanh/drtrace.git",
     "directory": "packages/javascript/drtrace-client"
+  },
+  "homepage": "https://github.com/CaoDuyThanh/drtrace#readme",
+  "bugs": {
+    "url": "https://github.com/CaoDuyThanh/drtrace/issues"
+  },
+  "engines": {
+    "node": ">=16.0.0"
   }
 }

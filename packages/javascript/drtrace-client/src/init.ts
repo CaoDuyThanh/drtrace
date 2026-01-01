@@ -19,6 +19,8 @@ export class ProjectInitializer {
   private projectRoot: string;
   private drtraceDir: string;
   private configPath: string;
+  // Track copied agent files for summary display
+  private copiedAgentFiles: string[] = [];
 
   constructor(projectRoot: string = process.cwd()) {
     this.projectRoot = projectRoot;
@@ -306,8 +308,9 @@ export class ProjectInitializer {
         return;
       }
 
-      // Copy all files recursively
-      this.copyAgentsRecursive(agentsDir, path.join(this.drtraceDir, "agents"));
+      // Copy all files recursively and track copied files
+      const copiedFiles = this.copyAgentsRecursive(agentsDir, path.join(this.drtraceDir, "agents"));
+      this.copiedAgentFiles.push(...copiedFiles);
     } catch (error) {
       console.warn(`⚠️  Could not copy agent files: ${error}`);
     }
@@ -315,37 +318,39 @@ export class ProjectInitializer {
 
   /**
    * Recursively copy all files from sourceDir to targetDir
+   * Returns list of relative file paths copied (for summary display)
    */
-  private copyAgentsRecursive(sourceDir: string, targetDir: string): void {
+  private copyAgentsRecursive(sourceDir: string, targetDir: string, basePath: string = ""): string[] {
     if (!fs.existsSync(targetDir)) {
       fs.mkdirSync(targetDir, { recursive: true });
     }
 
     const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
-    let copiedCount = 0;
+    const copiedFiles: string[] = [];
 
     for (const entry of entries) {
       const srcPath = path.join(sourceDir, entry.name);
       const destPath = path.join(targetDir, entry.name);
+      const relativePath = basePath ? path.join(basePath, entry.name) : entry.name;
 
       if (entry.isDirectory()) {
         // Recursively copy directories
-        this.copyAgentsRecursive(srcPath, destPath);
+        const subCopied = this.copyAgentsRecursive(srcPath, destPath, relativePath);
+        copiedFiles.push(...subCopied);
       } else {
         // Copy file (no renaming needed - files are already named correctly)
         fs.copyFileSync(srcPath, destPath);
-        copiedCount++;
-        console.log(`✓ Copied ${entry.name}`);
+        copiedFiles.push(relativePath);
+        console.log(`✓ Copied ${relativePath}`);
       }
     }
 
-    if (copiedCount > 0 && !fs.existsSync(path.join(targetDir, "..", ".."))) {
-      // Only print summary if we're at the top level
-      const relativeSource = path.relative(process.cwd(), sourceDir);
-      if (!relativeSource.includes("..")) {
-        console.log(`✓ Successfully copied ${copiedCount} file(s) from agents/`);
-      }
+    // Print summary only at top level
+    if (!basePath && copiedFiles.length > 0) {
+      console.log(`✓ Successfully copied ${copiedFiles.length} file(s) from agents/`);
     }
+
+    return copiedFiles;
   }
 
   /**
@@ -886,19 +891,12 @@ python -m drtrace_service status
     console.log(`   • ${path.join(this.drtraceDir, ".env.example")}`);
     console.log(`   • ${path.join(this.drtraceDir, "README.md")}`);
 
-    if (config.agent?.enabled) {
-      console.log(
-        `   • ${path.join(this.drtraceDir, "agents", "log-analysis.md")}`
-      );
-      console.log(
-        `   • ${path.join(this.drtraceDir, "agents", "log-it.md")}`
-      );
-      console.log(
-        `   • ${path.join(this.drtraceDir, "agents", "log-init.md")}`
-      );
-      console.log(
-        `   • ${path.join(this.drtraceDir, "agents", "log-help.md")}`
-      );
+    // List all copied agent files (includes integration-guides/)
+    if (this.copiedAgentFiles.length > 0) {
+      console.log("\n📋 Agent Files:");
+      for (const agentFile of this.copiedAgentFiles.sort()) {
+        console.log(`   • ${path.join(this.drtraceDir, "agents", agentFile)}`);
+      }
     }
 
     console.log("\n📖 Next Steps:");

@@ -288,6 +288,78 @@ def interact_with_daemon(query: str) -> str:
 
 ---
 
+## Important: Timestamps Are UTC
+
+All timestamps in DrTrace API are **UTC Unix timestamps**:
+
+| Field/Param | Format | Timezone |
+|-------------|--------|----------|
+| `ts` (in logs) | Unix float | UTC |
+| `start_ts`, `end_ts` | Unix float | UTC |
+| `since`, `until` | Relative or ISO 8601 | UTC |
+
+**Key Rules**:
+- ISO 8601 without timezone (e.g., `2025-12-31T02:44:03`) is interpreted as **UTC**, not local time
+- Relative times (`5m`, `1h`) are relative to server's current UTC time
+- To query with local time, include timezone offset: `2025-12-31T09:44:03+07:00`
+
+### Converting Local Time to UTC
+
+**Python:**
+```python
+from datetime import datetime, timezone, timedelta
+
+# Local time (e.g., 2025-12-31 09:44:03 in GMT+7)
+local_time = datetime(2025, 12, 31, 9, 44, 3)
+
+# Method 1: If you know your timezone offset
+local_tz = timezone(timedelta(hours=7))  # GMT+7
+local_aware = local_time.replace(tzinfo=local_tz)
+utc_time = local_aware.astimezone(timezone.utc)
+unix_ts = utc_time.timestamp()
+print(f"UTC Unix timestamp: {unix_ts}")
+
+# Method 2: Using system timezone
+import time
+unix_ts = time.mktime(local_time.timetuple())
+```
+
+**Bash:**
+```bash
+# Convert local time to Unix timestamp
+date -d "2025-12-31 09:44:03" +%s
+
+# Convert with explicit timezone
+TZ=UTC date -d "2025-12-31T02:44:03" +%s
+```
+
+### API Query Examples with Timezone
+
+```bash
+# Option 1: Include timezone in ISO 8601 (recommended for local time)
+curl "http://localhost:8001/logs/query?since=2025-12-31T09:44:03%2B07:00"
+
+# Option 2: Use relative time (always relative to server UTC time)
+curl "http://localhost:8001/logs/query?since=5m"
+
+# Option 3: Convert to UTC Unix timestamp first
+UTC_TS=$(TZ=UTC date -d "2025-12-31T02:44:03" +%s)
+curl "http://localhost:8001/logs/query?start_ts=$UTC_TS"
+
+# Option 4: Use ISO 8601 in UTC (note: no timezone = UTC)
+curl "http://localhost:8001/logs/query?since=2025-12-31T02:44:03"
+```
+
+### Common Timezone Pitfalls
+
+1. **ISO 8601 Without Timezone**: Interpreted as UTC, not local time. If you pass `2025-12-31T09:44:03` thinking it's local 9:44 AM, it will be treated as 9:44 AM UTC.
+
+2. **Server vs Client Timezone**: If your server is in a different timezone than your client, always use explicit UTC timestamps or include timezone offsets.
+
+3. **Relative Times**: `since=5m` means 5 minutes before server's current UTC time, regardless of your local timezone.
+
+---
+
 ## Related Documentation
 
 - `docs/daemon-interaction-guide.md` - OpenAPI discovery details
@@ -295,4 +367,4 @@ def interact_with_daemon(query: str) -> str:
 
 ---
 
-**Last Updated**: 2025-12-29
+**Last Updated**: 2025-12-31

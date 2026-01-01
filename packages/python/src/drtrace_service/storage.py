@@ -1,12 +1,23 @@
 from __future__ import annotations
 
 import os
-from typing import List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 
 import psycopg2
 from psycopg2.extras import Json, execute_batch
 
 from .models import LogBatch, LogRecord
+
+
+# Level ordering for min_level filter (Story API-3)
+LEVEL_ORDER = {
+    "DEBUG": 0,
+    "INFO": 1,
+    "WARN": 2,
+    "WARNING": 2,  # Alias for WARN
+    "ERROR": 3,
+    "CRITICAL": 4,
+}
 
 
 class LogStorage:
@@ -28,6 +39,9 @@ class LogStorage:
     application_id: Optional[str] = None,
     module_name: Optional[Union[str, List[str]]] = None,
     service_name: Optional[Union[str, List[str]]] = None,
+    message_contains: Optional[str] = None,
+    min_level: Optional[str] = None,
+    after_cursor: Optional[Dict[str, Any]] = None,
     limit: int = 100,
   ) -> List[LogRecord]:  # pragma: no cover - integration concern
     raise NotImplementedError
@@ -152,12 +166,19 @@ class PostgresLogStorage(LogStorage):
     application_id: Optional[str] = None,
     module_name: Optional[Union[str, List[str]]] = None,
     service_name: Optional[Union[str, List[str]]] = None,
+    message_contains: Optional[str] = None,
+    min_level: Optional[str] = None,
+    after_cursor: Optional[Dict[str, Any]] = None,
     limit: int = 100,
   ) -> List[LogRecord]:  # pragma: no cover - integration concern
     """
-    Simple time-range query over logs table ordered by ts DESC.
+    Time-range query over logs table ordered by ts DESC.
 
-    Supports filtering by single or multiple module_name and service_name values.
+    Supports:
+    - Single or multiple module_name and service_name values
+    - Case-insensitive message search (Story API-2)
+    - Minimum level filtering (Story API-3)
+    - Cursor-based pagination (Story API-4)
     """
     dsn = self._dsn
     conn = psycopg2.connect(dsn)
@@ -165,9 +186,11 @@ class PostgresLogStorage(LogStorage):
       with conn, conn.cursor() as cur:
         params: list[object] = [start_ts, end_ts]
         where = "ts BETWEEN to_timestamp(%s) AND to_timestamp(%s)"
+
         if application_id:
           where += " AND application_id = %s"
           params.append(application_id)
+
         if module_name:
           if isinstance(module_name, list):
             if module_name:
@@ -177,6 +200,7 @@ class PostgresLogStorage(LogStorage):
           else:
             where += " AND module_name = %s"
             params.append(module_name)
+
         if service_name:
           if isinstance(service_name, list):
             if service_name:
@@ -186,6 +210,28 @@ class PostgresLogStorage(LogStorage):
           else:
             where += " AND service_name = %s"
             params.append(service_name)
+
+        # Story API-2: Message text search (case-insensitive)
+        if message_contains:
+          where += " AND message ILIKE %s"
+          params.append(f"%{message_contains}%")
+
+        # Story API-3: Minimum level filter
+        if min_level:
+          min_order = LEVEL_ORDER.get(min_level.upper(), 0)
+          allowed_levels = [level for level, order in LEVEL_ORDER.items() if order >= min_order]
+          if allowed_levels:
+            placeholders = ",".join(["%s"] * len(allowed_levels))
+            where += f" AND UPPER(level) IN ({placeholders})"
+            params.extend(allowed_levels)
+
+        # Story API-4: Cursor-based pagination
+        if after_cursor:
+          cursor_ts = after_cursor.get("ts")
+          if cursor_ts is not None:
+            # Skip records at or before cursor position (ordered by ts DESC)
+            where += " AND ts < to_timestamp(%s)"
+            params.append(cursor_ts)
 
         cur.execute(
           f"""

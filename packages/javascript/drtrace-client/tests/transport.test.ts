@@ -18,7 +18,7 @@ describe('Transport', () => {
   it('sends batched logs via fetch', async () => {
     const t = new Transport({ daemonUrl: 'http://daemon' });
     await t.sendBatch([
-      { timestamp: new Date().toISOString(), applicationId: 'app', level: 'info', message: 'hello' },
+      { ts: Date.now() / 1000, application_id: 'app', module_name: 'default', level: 'info', message: 'hello' },
     ]);
     expect(mockFetch).toHaveBeenCalledTimes(1);
     const url = (mockFetch.mock.calls[0] as any)[0];
@@ -35,7 +35,7 @@ describe('Transport', () => {
 
     const t = new Transport({ daemonUrl: 'http://daemon', maxRetries: 2, timeoutMs: 1000 });
     const sendPromise = t.sendBatch([
-      { timestamp: new Date().toISOString(), applicationId: 'app', level: 'info', message: 'hello' },
+      { ts: Date.now() / 1000, application_id: 'app', module_name: 'default', level: 'info', message: 'hello' },
     ]);
 
     jest.advanceTimersByTime(1000);

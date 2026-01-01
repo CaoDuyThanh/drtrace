@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+import base64
+import json
+import os
+import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from fastapi import FastAPI, HTTPException, Query, status
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from . import analysis, help_agent_interface, storage
@@ -11,6 +17,120 @@ from .models import LogBatch
 from .status import get_status
 
 app = FastAPI(title="DrTrace Daemon", version="0.1.0")
+
+
+# -----------------------------------------------------------------------------
+# Time Parsing Utilities (Story API-1)
+# -----------------------------------------------------------------------------
+
+def parse_time_param(value: str, is_end: bool = False) -> float:
+    """Parse human-readable time to Unix timestamp.
+
+    Accepts:
+    - Relative: "5m", "1h", "2d", "30s"
+    - ISO 8601: "2025-12-31T02:44:03"
+    - ISO 8601 with TZ: "2025-12-31T02:44:03+07:00"
+    - Unix timestamp: "1767149043" or "1767149043.5"
+
+    Args:
+        value: Time string to parse
+        is_end: If True and value is integer timestamp, add 0.999999 for end of second
+
+    Returns:
+        Unix timestamp as float
+
+    Raises:
+        ValueError: If the time format cannot be parsed
+    """
+    value = value.strip()
+
+    # Try relative time first (e.g., "5m", "1h", "2d", "30s")
+    relative_match = re.match(r'^(\d+)([smhd])$', value, re.IGNORECASE)
+    if relative_match:
+        amount = int(relative_match.group(1))
+        unit = relative_match.group(2).lower()
+        unit_map = {'s': 'seconds', 'm': 'minutes', 'h': 'hours', 'd': 'days'}
+        delta = timedelta(**{unit_map[unit]: amount})
+        return (datetime.now(timezone.utc) - delta).timestamp()
+
+    # Try ISO 8601 with timezone
+    try:
+        dt = datetime.fromisoformat(value)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.timestamp()
+    except ValueError:
+        pass
+
+    # Try Unix timestamp (integer or float)
+    try:
+        ts = float(value)
+        # If integer and is_end, add 0.999999 to get end of second
+        if is_end and ts == int(ts):
+            ts += 0.999999
+        return ts
+    except ValueError:
+        pass
+
+    raise ValueError(f"Cannot parse time: {value}")
+
+
+# -----------------------------------------------------------------------------
+# Level Filtering Utilities (Story API-3)
+# -----------------------------------------------------------------------------
+
+LEVEL_ORDER = {
+    "DEBUG": 0,
+    "INFO": 1,
+    "WARN": 2,
+    "WARNING": 2,  # Alias for WARN
+    "ERROR": 3,
+    "CRITICAL": 4,
+}
+
+
+def get_levels_at_or_above(min_level: str) -> List[str]:
+    """Get all levels at or above the specified minimum level."""
+    min_level_upper = min_level.upper()
+    if min_level_upper not in LEVEL_ORDER:
+        raise ValueError(f"Unknown level: {min_level}")
+
+    min_order = LEVEL_ORDER[min_level_upper]
+    return [level for level, order in LEVEL_ORDER.items() if order >= min_order]
+
+
+# -----------------------------------------------------------------------------
+# Pagination Utilities (Story API-4)
+# -----------------------------------------------------------------------------
+
+def encode_cursor(ts: float, record_id: str) -> str:
+    """Encode cursor as base64 JSON."""
+    cursor_data = {"ts": ts, "id": record_id}
+    return base64.urlsafe_b64encode(json.dumps(cursor_data).encode()).decode()
+
+
+def decode_cursor(cursor: str) -> dict:
+    """Decode cursor from base64 JSON."""
+    try:
+        return json.loads(base64.urlsafe_b64decode(cursor.encode()).decode())
+    except Exception:
+        raise ValueError("Invalid cursor format")
+
+# CORS configuration for browser clients
+# Allow all origins by default, configurable via DRTRACE_CORS_ORIGINS env var
+CORS_ORIGINS = os.environ.get("DRTRACE_CORS_ORIGINS", "*")
+if CORS_ORIGINS == "*":
+    origins = ["*"]
+else:
+    origins = [o.strip() for o in CORS_ORIGINS.split(",")]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Request/Response models for /help/guide/* endpoints
@@ -75,28 +195,149 @@ async def ingest_logs(batch: LogBatch) -> Dict[str, int]:
 
 @app.get("/logs/query")
 async def query_logs(
-  start_ts: float = Query(..., description="Start of time range (unix timestamp, inclusive)"),
-  end_ts: float = Query(..., description="End of time range (unix timestamp, inclusive)"),
+  # New human-readable time params (Story API-1)
+  since: Optional[str] = Query(
+    None,
+    description="Start time (UTC): relative ('5m', '1h', '2d'), ISO 8601 ('2025-12-31T02:44:03'), or Unix timestamp. ISO 8601 without timezone is interpreted as UTC. Default: last 5 minutes"
+  ),
+  until: Optional[str] = Query(
+    None,
+    description="End time (UTC): relative ('5m', '1h', '2d'), ISO 8601 ('2025-12-31T02:44:03'), or Unix timestamp. ISO 8601 without timezone is interpreted as UTC. Default: now"
+  ),
+  # Legacy time params (backward compatible)
+  start_ts: Optional[float] = Query(
+    None,
+    description="Start timestamp in UTC Unix epoch (deprecated, use 'since')"
+  ),
+  end_ts: Optional[float] = Query(
+    None,
+    description="End timestamp in UTC Unix epoch (deprecated, use 'until')"
+  ),
+  # Existing filters
   application_id: Optional[str] = Query(None, description="Optional application_id filter"),
   module_name: Optional[str] = Query(None, description="Optional module_name filter"),
+  # New filters (Stories API-2, API-3)
+  message_contains: Optional[str] = Query(
+    None,
+    description="Case-insensitive substring search in log message"
+  ),
+  min_level: Optional[str] = Query(
+    None,
+    description="Minimum log level: DEBUG, INFO, WARN, ERROR, CRITICAL"
+  ),
+  # Pagination (Story API-4)
+  cursor: Optional[str] = Query(
+    None,
+    description="Pagination cursor from previous response's next_cursor"
+  ),
   limit: int = Query(100, ge=1, le=1000, description="Max number of records to return"),
 ) -> Dict[str, object]:
   """
-  Simple time-range query over persisted logs.
+  Query logs with flexible time formats, filters, and pagination.
 
-  This is a POC-focused endpoint to support Story 2.3 and later analysis.
+  **Important: All Timestamps Are UTC**
+
+  All timestamps in the DrTrace API are in UTC:
+  - The `ts` field in log records is a UTC Unix timestamp (float)
+  - Query params `start_ts`, `end_ts`, `since`, `until` expect UTC time
+  - ISO 8601 without timezone (e.g., "2025-12-31T02:44:03") is interpreted as UTC
+  - To query with local time, include timezone offset: "2025-12-31T09:44:03+07:00"
+
+  **Time Formats (since/until)**:
+  - Relative: "5m" (5 minutes), "1h" (1 hour), "2d" (2 days), "30s" (30 seconds)
+  - ISO 8601 UTC: "2025-12-31T02:44:03" or "2025-12-31T02:44:03Z"
+  - ISO 8601 with TZ: "2025-12-31T09:44:03+07:00" (converted to UTC internally)
+  - Unix timestamp: "1767149043" or "1767149043.5"
+
+  **Pagination**:
+  Use `cursor` from response's `next_cursor` to fetch the next page.
+  Response includes `has_more` (boolean) and `next_cursor` (string or null).
   """
+  now = datetime.now(timezone.utc).timestamp()
+
+  # Determine start time (Story API-1)
+  if since:
+    try:
+      start = parse_time_param(since, is_end=False)
+    except ValueError as e:
+      raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail={"code": "INVALID_TIME_FORMAT", "message": str(e)}
+      )
+  elif start_ts is not None:
+    start = start_ts
+  else:
+    # Default: last 5 minutes
+    start = now - 300
+
+  # Determine end time (Story API-1)
+  if until:
+    try:
+      end = parse_time_param(until, is_end=True)
+    except ValueError as e:
+      raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail={"code": "INVALID_TIME_FORMAT", "message": str(e)}
+      )
+  elif end_ts is not None:
+    end = end_ts
+  else:
+    end = now
+
+  # Validate min_level (Story API-3)
+  if min_level:
+    try:
+      get_levels_at_or_above(min_level)
+    except ValueError:
+      raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail={
+          "code": "INVALID_LEVEL",
+          "message": f"Invalid min_level '{min_level}'. Valid levels: DEBUG, INFO, WARN, ERROR, CRITICAL"
+        }
+      )
+
+  # Decode cursor (Story API-4)
+  after_cursor = None
+  if cursor:
+    try:
+      after_cursor = decode_cursor(cursor)
+    except ValueError:
+      raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail={"code": "INVALID_CURSOR", "message": "Invalid cursor format"}
+      )
+
+  # Fetch limit+1 to determine has_more (Story API-4)
   backend = storage.get_storage()
   records = backend.query_time_range(
-    start_ts=start_ts,
-    end_ts=end_ts,
+    start_ts=start,
+    end_ts=end,
     application_id=application_id,
     module_name=module_name,
-    limit=limit,
+    message_contains=message_contains,
+    min_level=min_level.upper() if min_level else None,
+    after_cursor=after_cursor,
+    limit=limit + 1,  # Fetch one extra to check has_more
   )
+
+  # Determine has_more and trim results (Story API-4)
+  has_more = len(records) > limit
+  if has_more:
+    records = records[:limit]
+
+  # Generate next_cursor from last result (Story API-4)
+  next_cursor = None
+  if has_more and records:
+    last = records[-1]
+    # Use ts and a unique identifier (or ts itself as string)
+    next_cursor = encode_cursor(last.ts, str(last.ts))
+
   return {
     "results": [r.model_dump() for r in records],
     "count": len(records),
+    "has_more": has_more,
+    "next_cursor": next_cursor,
   }
 
 

@@ -11,24 +11,25 @@ You must fully embody this agent's persona and follow all activation instruction
   <step n="1">Load persona from this current agent file (already in context)</step>
   <step n="2">Remember: You are a Log Analysis Specialist</step>
   <step n="3">READ the entire story file BEFORE any analysis - understand the query parsing rules</step>
-  <step n="4">When processing a user query, try methods in this order:
-    
-    **Method 1 (Preferred)**: Python code
-    - Try: `from drtrace_service.agent_interface import process_agent_query, check_daemon_status`
-    - If import succeeds: Use `response = await process_agent_query(user_query)` or `asyncio.run(process_agent_query(user_query))`
-    - Return the response string directly (it's already formatted markdown)
-    
-    **Method 2 (Fallback)**: HTTP API
-    - If Python import fails: Use HTTP requests to call DrTrace API endpoints
-    - **CRITICAL**: First fetch `/openapi.json` to discover field names (e.g., timestamp is `ts`, NOT `timestamp`)
+  <step n="4">When processing a user query, try methods in this order (see `agents/daemon-method-selection.md` for details):
+
+    **Method 1 (Preferred)**: HTTP/curl
+    - Simple, no Python dependencies, works in any environment
     - Check status: `GET http://localhost:8001/status`
-    - For analysis: `GET http://localhost:8001/analysis/why?application_id=X&start_ts=Y&end_ts=Z`
-    - Parse the JSON response using field names from OpenAPI schema
-    
+    - Query logs: `GET http://localhost:8001/logs/query?since=5m&application_id=X`
+    - Analysis: `GET http://localhost:8001/analysis/why?application_id=X&since=5m`
+    - **CRITICAL**: First fetch `/openapi.json` to discover field names (e.g., timestamp is `ts`, NOT `timestamp`)
+
+    **Method 2 (Fallback)**: Python SDK
+    - Use when HTTP is blocked or you need async features
+    - Try: `from drtrace_service.agent_interface import process_agent_query, check_daemon_status`
+    - Use `response = await process_agent_query(user_query)` or `asyncio.run(process_agent_query(user_query))`
+    - Return the response string directly (it's already formatted markdown)
+
     **Method 3 (Last resort)**: CLI commands
-    - If both Python and HTTP fail: Execute `python -m drtrace_service why --application-id X --since 5m`
+    - If both HTTP and Python fail: Execute `python -m drtrace_service why --application-id X --since 5m`
     - Parse the CLI output and format for the user
-    
+
     **Important**: Always check daemon status first. If daemon is unavailable, return clear error message with next steps.
   </step>
   <step n="5">If information is missing, ask the user for clarification with helpful suggestions</step>

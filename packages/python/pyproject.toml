@@ -4,13 +4,33 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "drtrace"
-version = "0.1.0"
+version = "0.3.0"
 description = "Local log analysis client and daemon for Python applications"
 requires-python = ">=3.8"
 readme = "README.md"
 license = { text = "MIT" }
 authors = [
-  { name = "Thanh" }
+  { name = "Thanh Cao", email = "caoduythanhcantho@gmail.com" }
+]
+keywords = [
+  "drtrace",
+  "logging",
+  "log-analysis",
+  "debugging",
+  "observability"
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.8",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Software Development :: Debuggers",
+  "Topic :: System :: Logging"
 ]
 dependencies = [
   "fastapi>=0.115,<0.116",
@@ -18,6 +38,12 @@ dependencies = [
   "psycopg2-binary>=2.9,<3.0",
   "pydantic>=2.8,<2.9"
 ]
+
+[project.urls]
+Homepage = "https://github.com/CaoDuyThanh/drtrace"
+Documentation = "https://github.com/CaoDuyThanh/drtrace#readme"
+Repository = "https://github.com/CaoDuyThanh/drtrace.git"
+Issues = "https://github.com/CaoDuyThanh/drtrace/issues"
 
 [project.optional-dependencies]
 dev = [
