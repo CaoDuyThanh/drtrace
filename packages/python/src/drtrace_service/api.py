@@ -216,10 +216,14 @@ async def query_logs(
   # Existing filters
   application_id: Optional[str] = Query(None, description="Optional application_id filter"),
   module_name: Optional[str] = Query(None, description="Optional module_name filter"),
-  # New filters (Stories API-2, API-3)
+  # New filters (Stories API-2, API-3, Epic 11.1)
   message_contains: Optional[str] = Query(
     None,
     description="Case-insensitive substring search in log message"
+  ),
+  message_regex: Optional[str] = Query(
+    None,
+    description="POSIX regex pattern for message matching (mutually exclusive with message_contains)"
   ),
   min_level: Optional[str] = Query(
     None,
@@ -284,6 +288,38 @@ async def query_logs(
   else:
     end = now
 
+  # Validate message_contains and message_regex are mutually exclusive (Epic 11.1)
+  if message_contains and message_regex:
+    raise HTTPException(
+      status_code=status.HTTP_400_BAD_REQUEST,
+      detail={
+        "code": "INVALID_PARAMS",
+        "message": "Cannot use both message_contains and message_regex. Choose one."
+      }
+    )
+
+  # Validate message_regex pattern (Epic 11.1)
+  if message_regex:
+    if len(message_regex) > 500:
+      raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail={
+          "code": "INVALID_PATTERN",
+          "message": "Pattern too long (max 500 characters)"
+        }
+      )
+    # Try to compile the pattern to catch syntax errors early
+    try:
+      re.compile(message_regex)
+    except re.error as e:
+      raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail={
+          "code": "INVALID_PATTERN",
+          "message": f"Invalid regex pattern: {str(e)}"
+        }
+      )
+
   # Validate min_level (Story API-3)
   if min_level:
     try:
@@ -316,6 +352,7 @@ async def query_logs(
     application_id=application_id,
     module_name=module_name,
     message_contains=message_contains,
+    message_regex=message_regex,
     min_level=min_level.upper() if min_level else None,
     after_cursor=after_cursor,
     limit=limit + 1,  # Fetch one extra to check has_more

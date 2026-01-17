@@ -6,7 +6,7 @@
  */
 
 #pragma once
-#define DRTRACE_VERSION "0.4.0"
+#define DRTRACE_VERSION "0.5.0"
 
 // Standard library includes required for header-only implementation
 #include <atomic>

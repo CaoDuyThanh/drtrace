@@ -252,20 +252,17 @@ python -m drtrace_service status
 
 ### Query Logs Directly
 
-You can also query logs without analysis:
+You can query logs without analysis using the HTTP API or grep command:
 
 ```bash
-# Using Python (requires calculating timestamps)
-python -c "
-from datetime import datetime, timedelta
-import time
-end = time.time()
-start = end - 300  # 5 minutes ago
-print(f'Start: {start}, End: {end}')
-"
+# Search for logs with "error" (case-insensitive substring)
+python -m drtrace_service grep --application-id quickstart-app --since 5m "error"
+
+# Search using regex patterns (matches "error" OR "warning")
+python -m drtrace_service grep -E --application-id quickstart-app --since 5m "error|warning"
 ```
 
-Then use the HTTP API or check the logs via the daemon's `/logs/query` endpoint.
+> **Note:** When querying logs via the API, you can use either `message_contains` (substring search) or `message_regex` (regex pattern), but not both in the same request. The CLI `grep` command automatically uses the appropriate parameter based on whether you use the `-E` flag.
 
 ### Analyze Specific Time Range
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 import psycopg2
@@ -167,6 +168,7 @@ class PostgresLogStorage(LogStorage):
     module_name: Optional[Union[str, List[str]]] = None,
     service_name: Optional[Union[str, List[str]]] = None,
     message_contains: Optional[str] = None,
+    message_regex: Optional[str] = None,
     min_level: Optional[str] = None,
     after_cursor: Optional[Dict[str, Any]] = None,
     limit: int = 100,
@@ -176,7 +178,8 @@ class PostgresLogStorage(LogStorage):
 
     Supports:
     - Single or multiple module_name and service_name values
-    - Case-insensitive message search (Story API-2)
+    - Case-insensitive message search: ILIKE for substring (Story API-2)
+    - Case-insensitive POSIX regex for message (Epic 11.1)
     - Minimum level filtering (Story API-3)
     - Cursor-based pagination (Story API-4)
     """
@@ -215,6 +218,11 @@ class PostgresLogStorage(LogStorage):
         if message_contains:
           where += " AND message ILIKE %s"
           params.append(f"%{message_contains}%")
+
+        # Epic 11.1: Message regex search (case-insensitive POSIX regex)
+        if message_regex:
+          where += " AND message ~* %s"
+          params.append(message_regex)
 
         # Story API-3: Minimum level filter
         if min_level:
@@ -314,4 +322,35 @@ def _record_to_row(record: LogRecord) -> tuple:
     Json(record.context or {}),
   )
 
+
+def get_default_log_path() -> Optional[Path]:
+  """Get the default log file path for fallback mode.
+  
+  Checks for DRTRACE_LOG_FILE env var, then looks in standard locations:
+  - ./_drtrace/logs/drtrace.log
+  - ./logs/drtrace.log
+  - /tmp/drtrace.log
+  
+  Returns:
+      Path to log file if found and readable, None otherwise
+  """
+  # Check env var first
+  log_file_env = os.getenv("DRTRACE_LOG_FILE")
+  if log_file_env:
+    log_path = Path(log_file_env).expanduser()
+    if log_path.exists() and log_path.is_file():
+      return log_path
+  
+  # Try standard locations
+  candidates = [
+    Path.cwd() / "_drtrace" / "logs" / "drtrace.log",
+    Path.cwd() / "logs" / "drtrace.log",
+    Path("/tmp/drtrace.log"),
+  ]
+  
+  for candidate in candidates:
+    if candidate.exists() and candidate.is_file():
+      return candidate
+  
+  return None
 

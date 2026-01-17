@@ -32,6 +32,10 @@ class AnalysisStorage(storage_mod.LogStorage):  # type: ignore[misc]
         application_id: Optional[str] = None,
         module_name: Optional[Any] = None,
         service_name: Optional[Any] = None,
+        message_contains: Optional[str] = None,
+        message_regex: Optional[str] = None,
+        min_level: Optional[str] = None,
+        after_cursor: Optional[Any] = None,
         limit: int = 100,
     ) -> List[LogRecord]:
         """Query records matching criteria."""

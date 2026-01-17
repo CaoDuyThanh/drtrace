@@ -35,6 +35,119 @@ Example Makefile snippets
 Add the following to your `Makefile` (POSIX shell assumed):
 
 ```
+
+### Downgrade (undo accidental bump)
+
+Accidentally bumped your version? Downgrade safely via Make targets.
+
+#### Major Version Downgrade
+
+Undo a major version bump (e.g., 2.0.0 → 1.0.0):
+
+```bash
+make downgrade-major-version
+```
+
+What happens:
+- VERSION is set to one major lower, minor/patch reset to 0
+- Example: 2.0.0 → 1.0.0, 5.3.2 → 4.0.0
+- Git commit created: "Downgrade version to X.Y.Z"
+- Annotated git tag created: vX.Y.Z
+
+#### Minor Version Downgrade
+
+Undo a minor bump (e.g., 2.3.1 → 2.2.0):
+
+```bash
+make downgrade-minor-version
+```
+
+Behavior:
+- VERSION updated to one minor lower, patch reset to 0
+- Example: 2.3.1 → 2.2.0, 1.5.0 → 1.4.0
+- Git commit and tag created
+
+#### Patch Version Downgrade
+
+Undo a patch bump (e.g., 2.3.1 → 2.3.0):
+
+```bash
+make downgrade-patch-version
+```
+
+Behavior:
+- VERSION updated to one patch lower
+- Example: 2.3.1 → 2.3.0, 1.0.5 → 1.0.4
+- Git commit and tag created
+
+#### Push the Downgrade
+
+After downgrading, push your changes and tags:
+
+```bash
+git push origin HEAD
+git push origin --tags
+```
+
+Both are required: the first pushes the commit, the second pushes the annotated tag.
+
+#### Safety Checks
+
+The downgrade script enforces cascading semver logic:
+- If patch > 0: decrement patch
+- If patch = 0: decrement minor, reset patch to 0
+- If minor = 0: decrement major, reset minor and patch to 0
+- Cannot downgrade below 0.0.0
+- Working directory must be clean (no uncommitted changes)
+- Warns if tag exists; use force to overwrite:
+
+Example cascading behavior:
+- 1.2.3 → 1.2.2 (decrement patch)
+- 1.2.0 → 1.1.0 (patch=0, decrement minor)
+- 1.0.0 → 0.0.0 (minor=0, decrement major)
+- 0.0.0 cannot be downgraded further
+
+```bash
+make FORCE=1 downgrade-major-version
+```
+
+#### Published Artifacts Responsibility
+
+If you already published the higher version, you are responsible for:
+- Removing artifacts from registries (PyPI, npm, etc.)
+- Notifying users of the correction
+- Documenting the downgrade in CHANGELOG
+
+#### Troubleshooting
+
+"Working directory must be clean": commit or stash changes first.
+
+```bash
+git add . && git commit -m "commit changes"
+# OR
+git stash
+```
+
+"Cannot downgrade below 0.0.0": you are at the minimum version.
+
+"Tag vX.Y.Z already exists": force overwrite the tag.
+
+```bash
+make FORCE=1 downgrade-minor-version
+```
+
+#### Related Commands
+
+```bash
+cat VERSION                            # Show current version
+make version-bump-patch                # Bump to next patch
+make version-bump-minor                # Bump to next minor
+make version-bump-major                # Bump to next major
+make downgrade-major-version           # Downgrade to previous major
+make downgrade-minor-version           # Downgrade to previous minor
+make downgrade-patch-version           # Downgrade to previous patch
+make version-sync                      # Sync versions across packages
+```
 VERSION_FILE := VERSION
 
 version:

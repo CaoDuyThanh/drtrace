@@ -8,6 +8,24 @@
 
 ## Core Principles
 
+### 0. Prefer CLI When Available (and Discover It)
+
+**Principle**: If the DrTrace CLI is installed, agents should use it for local operations (status, grep/tail) and fall back to HTTP/OpenAPI only if the CLI is unavailable.
+
+**Why**:
+- ✅ CLI is faster for local flows (no HTTP overhead)
+- ✅ New features (e.g., regex search via `drtrace grep -E`) ship through the CLI
+- ✅ Consistent developer experience across languages
+
+**Implementation**:
+- Detect CLI with `drtrace --version` (or `which drtrace`); if missing, continue with OpenAPI-first HTTP flow
+- Prefer CLI commands when present:
+  - `drtrace status` for health/visibility
+  - `drtrace grep` (supports `-E` regex, `-i/-c/-v`, `--json`)
+  - `drtrace tail` for live view
+- If CLI unavailable, use OpenAPI discovery (`/openapi.json`) then HTTP endpoints as usual
+- Keep outputs pipe-friendly; use `--json` when agent needs structured data
+
 ### 1. OpenAPI-First Discovery
 
 **Principle**: Use OpenAPI schema discovery for daemon interaction instead of hardcoding endpoints.
@@ -155,6 +173,104 @@ agents/
 ---
 
 ## Design Patterns
+
+### DrTrace Query Constraints
+
+**Principle**: When querying logs via the DrTrace API, understand and respect parameter constraints.
+
+**Key Constraint**: `message_contains` and `message_regex` are **mutually exclusive**.
+
+**Why**:
+- API enforces single filter mode for clarity
+- Prevents ambiguous queries
+- Ensures predictable behavior
+
+**Implementation**:
+- Choose ONE filter type per query:
+  - `message_contains`: Case-insensitive substring search (simple, fast)
+  - `message_regex`: POSIX regex pattern (powerful, flexible)
+- CLI automatically routes to correct parameter:
+  - `drtrace grep "timeout"` → uses `message_contains`
+  - `drtrace grep -E "error|warning"` → uses `message_regex`
+
+**Correct Usage Examples**:
+
+Python (HTTP API):
+```python
+import httpx
+
+# ✅ Good: Substring search
+params = {
+    "start_ts": 1703001200,
+    "end_ts": 1703001300,
+    "message_contains": "timeout"
+}
+response = httpx.get(f"{daemon_url}/logs/query", params=params)
+
+# ✅ Good: Regex search
+params = {
+    "start_ts": 1703001200,
+    "end_ts": 1703001300,
+    "message_regex": "error|warning"
+}
+response = httpx.get(f"{daemon_url}/logs/query", params=params)
+
+# ❌ Bad: Both parameters (returns HTTP 400)
+params = {
+    "start_ts": 1703001200,
+    "end_ts": 1703001300,
+    "message_contains": "error",
+    "message_regex": "warning"  # INVALID
+}
+response = httpx.get(f"{daemon_url}/logs/query", params=params)
+# Returns: {"detail": {"code": "INVALID_PARAMS", "message": "Cannot use both..."}}
+```
+
+JavaScript (HTTP API):
+```javascript
+// ✅ Good: Substring search
+const params = new URLSearchParams({
+  start_ts: '1703001200',
+  end_ts: '1703001300',
+  message_contains: 'timeout'
+});
+const response = await fetch(`${daemonUrl}/logs/query?${params}`);
+
+// ✅ Good: Regex search
+const params = new URLSearchParams({
+  start_ts: '1703001200',
+  end_ts: '1703001300',
+  message_regex: 'error|warning'
+});
+const response = await fetch(`${daemonUrl}/logs/query?${params}`);
+```
+
+**Error Handling**:
+```python
+# Catch and handle 400 errors
+try:
+    response = httpx.get(f"{daemon_url}/logs/query", params=params)
+    response.raise_for_status()
+    logs = response.json()
+except httpx.HTTPStatusError as e:
+    if e.response.status_code == 400:
+        error = e.response.json()
+        if error.get("detail", {}).get("code") == "INVALID_PARAMS":
+            # User provided both filters - help them fix it
+            print("Error: Cannot use both message_contains and message_regex.")
+            print("Choose one filter type and retry.")
+    raise
+```
+
+**Agent Best Practice**:
+- When building agent queries, choose filter type based on user intent:
+  - Simple text search → `message_contains`
+  - Pattern matching (OR, character classes) → `message_regex`
+- Never pass both parameters
+- Catch 400 errors and provide helpful messages
+- Document which parameter your agent uses
+
+---
 
 ### Pattern 1: OpenAPI-First Discovery
 

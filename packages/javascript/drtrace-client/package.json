@@ -1,6 +1,6 @@
 {
   "name": "drtrace",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "DrTrace JavaScript/TypeScript client",
   "main": "dist/index.js",
   "browser": "dist/browser.js",
@@ -18,11 +18,11 @@
     }
   },
   "bin": {
-    "drtrace": "dist/bin/init.js"
+    "drtrace": "dist/bin/cli.js"
   },
   "scripts": {
     "prebuild": "node scripts/copy-agents.js",
-    "build": "tsc && mkdir -p dist/bin && cp bin/init.js dist/bin/init.js && chmod +x dist/bin/init.js && mkdir -p dist/resources/agents && (cp -r agents/* dist/resources/agents/ 2>/dev/null || true) && (cp -r ../../../agents/integration-guides/* dist/resources/agents/integration-guides/ 2>/dev/null || true) && mkdir -p dist/resources/cpp && cp ../../../packages/cpp/drtrace-client/src/drtrace_sink.hpp dist/resources/cpp/ 2>/dev/null || true",
+    "build": "tsc && mkdir -p dist/bin && cp bin/cli.js dist/bin/cli.js && chmod +x dist/bin/cli.js && mkdir -p dist/resources/agents && (cp -r agents/* dist/resources/agents/ 2>/dev/null || true) && (cp -r ../../../agents/integration-guides/* dist/resources/agents/integration-guides/ 2>/dev/null || true) && mkdir -p dist/resources/cpp && cp ../../../packages/cpp/drtrace-client/src/drtrace_sink.hpp dist/resources/cpp/ 2>/dev/null || true",
     "test": "jest",
     "test:watch": "jest --watch",
     "lint": "eslint src --ext .ts",

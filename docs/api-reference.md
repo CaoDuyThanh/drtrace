@@ -127,7 +127,26 @@ Query logs by time range with optional filters.
 | `end_ts` | float | Yes | End timestamp (Unix, inclusive) |
 | `application_id` | string | No | Filter by application ID |
 | `module_name` | string | No | Filter by module name |
+| `message_contains` | string | No | Case-insensitive substring search in log message |
+| `message_regex` | string | No | POSIX regex pattern for message matching (max 500 chars) |
+| `min_level` | string | No | Minimum log level (DEBUG, INFO, WARN, ERROR, CRITICAL) |
 | `limit` | int | No | Max records (1-1000, default: 100) |
+
+**⚠️ Important Constraint:**
+
+`message_contains` and `message_regex` are **mutually exclusive**. You can use one or the other, but not both in the same request.
+
+- Use `message_contains` for simple text searches (case-insensitive substring matching)
+- Use `message_regex` for advanced pattern matching (POSIX regular expressions)
+
+**Message Filtering Comparison:**
+
+| Feature | `message_contains` | `message_regex` |
+|---------|-------------------|-----------------|
+| Match type | Substring (case-insensitive) | POSIX regex pattern |
+| Example | `timeout` matches "Connection timeout" | `error\|warning` matches "error occurred" or "warning sign" |
+| Use case | Simple text search | Complex patterns, alternatives, character classes |
+| Max length | - | 500 characters |
 
 **Response:**
 
@@ -153,10 +172,37 @@ Query logs by time range with optional filters.
 }
 ```
 
-**Example:**
+**Examples:**
+
+Simple substring search:
+```bash
+curl "http://localhost:8001/logs/query?start_ts=1703001200&end_ts=1703001300&message_contains=timeout"
+```
+
+Regex pattern search:
+```bash
+curl "http://localhost:8001/logs/query?start_ts=1703001200&end_ts=1703001300&message_regex=error%7Cwarning"
+```
+
+Combining filters:
+```bash
+curl "http://localhost:8001/logs/query?start_ts=1703001200&end_ts=1703001300&application_id=myapp&min_level=ERROR&limit=10"
+```
+
+**Error Response (both parameters used):**
 
 ```bash
-curl "http://localhost:8001/logs/query?start_ts=1703001200&end_ts=1703001300&application_id=myapp&limit=10"
+curl "http://localhost:8001/logs/query?start_ts=1703001200&end_ts=1703001300&message_contains=error&message_regex=warn"
+```
+
+Returns HTTP 400:
+```json
+{
+  "detail": {
+    "code": "INVALID_PARAMS",
+    "message": "Cannot use both message_contains and message_regex. Choose one."
+  }
+}
 ```
 
 ---
@@ -613,6 +659,74 @@ Listening on: localhost:8001
 **Environment Variables:**
 - `DRTRACE_DAEMON_HOST`: Daemon host (default: `localhost`)
 - `DRTRACE_DAEMON_PORT`: Daemon port (default: `8001`)
+
+---
+
+### grep
+
+Search log messages with pattern matching (similar to Unix `grep`).
+
+**Usage:**
+
+```bash
+python -m drtrace_service grep [OPTIONS] PATTERN
+```
+
+**Options:**
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `-E`, `--extended-regex` | flag | Use extended regex (POSIX) instead of substring search |
+| `--application-id` | string | Filter by application ID |
+| `--since` | string | Relative time window (e.g., "5m", "1h", "30s") |
+| `--daemon-host` | string | Daemon host (default: `localhost`) |
+| `--daemon-port` | int | Daemon port (default: `8001`) |
+
+**Pattern Matching Behavior:**
+
+- **Without `-E`**: Performs case-insensitive substring search (uses API `message_contains` parameter)
+- **With `-E`**: Uses POSIX regular expressions for advanced pattern matching (uses API `message_regex` parameter)
+
+**⚠️ Note:** The `-E` and default modes are mutually exclusive at the API level - the CLI automatically sends the appropriate parameter (`message_contains` OR `message_regex`) to the daemon.
+
+**Examples:**
+
+Simple substring search (case-insensitive):
+```bash
+# Find all logs containing "timeout"
+python -m drtrace_service grep timeout
+
+# Search in specific app from last 10 minutes
+python -m drtrace_service grep --application-id myapp --since 10m "connection error"
+```
+
+Extended regex search:
+```bash
+# Find logs matching "error" OR "warning"
+python -m drtrace_service grep -E "error|warning"
+
+# Match lines starting with "ERROR:" or "WARN:"
+python -m drtrace_service grep -E "^(ERROR|WARN):"
+
+# Find numeric IDs in format "ID-12345"
+python -m drtrace_service grep -E "ID-[0-9]{5}"
+
+# Search with application filter
+python -m drtrace_service grep -E --application-id myapp "timeout|error"
+```
+
+**Output:**
+
+Matched log entries with:
+- Timestamp
+- Level
+- Message
+- Source location (file:line)
+
+**Exit Codes:**
+- `0`: Success (matches found)
+- `1`: No matches found or error
+- `2`: Daemon unreachable
 
 ---
 

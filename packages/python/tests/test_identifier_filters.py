@@ -23,6 +23,7 @@ class DummyIdentifierStorage(storage_mod.LogStorage):  # type: ignore[misc]
     module_name: Optional[Any] = None,
     service_name: Optional[Any] = None,
     message_contains: Optional[str] = None,
+    message_regex: Optional[str] = None,
     min_level: Optional[str] = None,
     after_cursor: Optional[Any] = None,
     limit: int = 100,

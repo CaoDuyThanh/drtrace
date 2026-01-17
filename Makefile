@@ -21,7 +21,7 @@ develop-install: venv
 	$(VENV)/bin/pip install -e packages/python
 
 # Version management
-.PHONY: version-sync version-bump-patch version-bump-minor version-bump-major
+.PHONY: version-sync version-bump-patch version-bump-minor version-bump-major downgrade-major-version downgrade-minor-version downgrade-patch-version _downgrade
 
 version-sync:
 	@chmod +x scripts/sync-versions.sh
@@ -56,5 +56,20 @@ version-bump-major:
 	echo "$$NEW_VERSION" > VERSION; \
 	echo "Bumped version to $$NEW_VERSION"; \
 	$(MAKE) version-sync
+
+# Downgrade targets
+
+downgrade-major-version:
+	@$(MAKE) _downgrade OP=major
+
+downgrade-minor-version:
+	@$(MAKE) _downgrade OP=minor
+
+downgrade-patch-version:
+	@$(MAKE) _downgrade OP=patch
+
+_downgrade:
+	@$(PYTHON) scripts/version_downgrade.py --operation $(OP)
+	@$(MAKE) version-sync
 
 

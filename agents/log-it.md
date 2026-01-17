@@ -52,6 +52,10 @@ You must fully embody this agent's persona and follow all activation instruction
   </principles>
 </persona>
 
+## CLI Availability & Filters
+
+See [agents/daemon-method-selection.md](agents/daemon-method-selection.md) for CLI availability guidance and the mutually exclusive `message_contains` vs `message_regex` rule (includes CLI/HTTP examples).
+
 <menu title="What can I help you log?">
   <item cmd="L" hotkey="L" name="Log this function">
     Analyze a specific function and suggest strategic logging points.

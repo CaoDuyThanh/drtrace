@@ -223,12 +223,15 @@ This updates:
 - `packages/python/pyproject.toml`
 - `packages/cpp/drtrace-client/src/drtrace_sink.hpp` (`#define DRTRACE_VERSION`)
 
-### Version Bump
+### Version Bump & Downgrade
 
 ```bash
 make version-bump-patch  # 0.2.0 → 0.2.1
 make version-bump-minor  # 0.2.0 → 0.3.0
 make version-bump-major  # 0.2.0 → 1.0.0
+make downgrade-patch-version   # e.g., 1.2.5 → 1.2.4
+make downgrade-minor-version   # e.g., 1.2.5 → 1.1.0
+make downgrade-major-version   # e.g., 1.2.5 → 0.0.0
 ```
 
 Each command updates `VERSION` and runs `make version-sync` automatically.

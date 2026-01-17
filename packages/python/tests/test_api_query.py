@@ -1,13 +1,15 @@
 """
-Tests for API query improvements (Stories API-1 through API-4).
+Tests for API query improvements (Stories API-1 through API-4, Epic 11.1).
 
 These tests validate the new API features:
 - Story API-1: Human-readable timestamps (since/until)
 - Story API-2: Message text search (message_contains)
 - Story API-3: min_level filter
 - Story API-4: Cursor-based pagination
+- Epic 11.1: Regex message search (message_regex)
 """
 
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
@@ -41,11 +43,12 @@ class ApiTestStorage(storage_mod.LogStorage):
         module_name: Optional[Any] = None,
         service_name: Optional[Any] = None,
         message_contains: Optional[str] = None,
+        message_regex: Optional[str] = None,
         min_level: Optional[str] = None,
         after_cursor: Optional[Dict[str, Any]] = None,
         limit: int = 100,
     ) -> List[LogRecord]:
-        """Query records with all API-1 through API-4 filters."""
+        """Query records with all API-1 through API-4 and Epic 11.1 filters."""
         level_order = {"DEBUG": 0, "INFO": 1, "WARN": 2, "WARNING": 2, "ERROR": 3, "CRITICAL": 4}
         results: List[LogRecord] = []
 
@@ -73,6 +76,10 @@ class ApiTestStorage(storage_mod.LogStorage):
             # Message contains filter (Story API-2)
             if message_contains:
                 if message_contains.lower() not in (r.message or "").lower():
+                    continue
+            # Message regex filter (Epic 11.1)
+            if message_regex:
+                if not re.search(message_regex, r.message or "", re.IGNORECASE):
                     continue
             # Min level filter (Story API-3)
             if min_level:

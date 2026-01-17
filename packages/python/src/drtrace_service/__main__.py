@@ -10,17 +10,22 @@ from importlib import resources
 from typing import NoReturn, Optional, Tuple
 from urllib import error, parse, request
 
+from drtrace_service.cli.grep import grep_command
+from drtrace_service.cli.tail import tail_command
+
 
 def main(argv: list[str] | None = None) -> NoReturn:
   argv = list(sys.argv[1:] if argv is None else argv)
 
-  if not argv or argv[0] not in {"status", "why", "query", "init-agent", "init"}:
-    print("Usage: python -m drtrace {status|why|query|init-agent|init}", file=sys.stderr)
+  if not argv or argv[0] not in {"status", "why", "query", "init-agent", "init", "grep", "tail"}:
+    print("Usage: python -m drtrace {status|why|query|init-agent|init|grep|tail}", file=sys.stderr)
     print("  status        - Check daemon status", file=sys.stderr)
     print("  why           - Analyze why an error happened", file=sys.stderr)
     print("  query         - Manage saved analysis queries", file=sys.stderr)
     print("  init-agent    - Bootstrap default agent file (use --agent log-it for logging assistant, log-init for setup assistant)", file=sys.stderr)
     print("  init          - Interactive project initialization with config and templates", file=sys.stderr)
+    print("  grep          - Search logs with POSIX regex", file=sys.stderr)
+    print("  tail          - Stream logs in real time", file=sys.stderr)
     sys.exit(1)
 
   if argv[0] == "status":
@@ -33,6 +38,10 @@ def main(argv: list[str] | None = None) -> NoReturn:
     _run_init_agent(argv[1:])
   elif argv[0] == "init":
     _run_init_project(argv[1:])
+  elif argv[0] == "grep":
+    sys.exit(grep_command(argv[1:]))
+  elif argv[0] == "tail":
+    sys.exit(tail_command(argv[1:]))
 
 
 def _run_status() -> None:
