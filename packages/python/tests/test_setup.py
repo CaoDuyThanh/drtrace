@@ -13,7 +13,7 @@ from pathlib import Path
 
 def _copy_integration_guides_test_impl(setup_dir: Path):
     """Test implementation of _copy_integration_guides() method.
-    
+
     This replicates the logic from setup.py for testing purposes.
     """
     try:

@@ -20,7 +20,10 @@ describe('JavaScript CLI E2E Tests', () => {
 
     // Initialize and install package once for all tests
     execSync('npm init -y', { cwd: workDir, stdio: 'ignore' });
-    execSync('npm install /media/thanh/data/Projects/drtrace/packages/javascript/drtrace-client', {
+    
+    // Find the package path relative to this test file
+    const packagePath = path.resolve(__dirname, '..');
+    execSync(`npm install ${packagePath}`, {
       cwd: workDir,
       stdio: 'inherit'
     });

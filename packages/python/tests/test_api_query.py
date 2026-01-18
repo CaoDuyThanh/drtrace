@@ -140,7 +140,6 @@ class TestParseTimeParam:
 
     def test_relative_time_case_insensitive(self):
         """Test relative time is case-insensitive."""
-        now = time.time()
         result1 = parse_time_param("5M")
         result2 = parse_time_param("5m")
         assert abs(result1 - result2) < 1

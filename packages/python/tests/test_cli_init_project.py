@@ -455,7 +455,7 @@ class TestInitProjectIntegration:
                 initializer = ProjectInitializer(Path(tmpdir))
                 initializer._create_directory_structure()
 
-                config = ConfigSchema.get_default_config(
+                ConfigSchema.get_default_config(
                     project_name=f"test-{language}",
                     application_id=f"test-{language}",
                     language=language,

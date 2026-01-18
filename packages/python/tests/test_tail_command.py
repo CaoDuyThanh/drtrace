@@ -94,10 +94,10 @@ class TestTailFollower:
             follower = TailFollower(Path(log_path))
             # Mock the follow part to just exit immediately
             with patch("time.sleep"):
-                with patch("builtins.print") as mock_print:
+                with patch("builtins.print"):
                     # We need to handle KeyboardInterrupt
                     with patch.object(follower, "tail", side_effect=[0]):
-                        result = follower.tail()
+                        follower.tail()
                         # The actual tail method will be called, so this won't reach here
                         # Let's instead verify the follower is set up correctly
                         assert follower.log_path == Path(log_path)
