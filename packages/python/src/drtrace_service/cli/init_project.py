@@ -256,15 +256,14 @@ class ProjectInitializer:
 
     def _copy_agent_spec(self) -> None:
         """Copy all agent files from packaged resources to _drtrace/agents/.
-        
+
         Copies everything from agents/ directory including:
         - Agent spec files (*.md)
         - Integration guides (integration-guides/*.md)
         - Any other files (README.md, CONTRIBUTING.md, etc.)
         """
-        from importlib import resources
-        import os
         from pathlib import Path
+
         import pkg_resources
 
         # Try to copy all files from agents/ directory
@@ -276,13 +275,11 @@ class ProjectInitializer:
                     if hasattr(agents_path, 'exists') and agents_path.exists():
                         # Convert Traversable to Path for easier handling
                         # Use as_file() context manager to get actual file path
-                        import tempfile
-                        import shutil as shutil_module
                         with resources.as_file(agents_path) as agents_dir_path:
                             copied = self._copy_agents_recursive(Path(agents_dir_path), self.drtrace_dir / "agents")
                             self.copied_agent_files.extend(copied)
                         return
-            except (AttributeError, FileNotFoundError, TypeError) as e:
+            except (AttributeError, FileNotFoundError, TypeError):
                 # TypeError can occur if as_file() doesn't work with directories
                 pass
 
@@ -311,18 +308,18 @@ class ProjectInitializer:
         """Copy files from importlib.resources Traversable to target directory."""
         target_dir.mkdir(parents=True, exist_ok=True)
         copied_count = 0
-        
+
         try:
             for item in source_traversable.iterdir():
                 if hasattr(item, 'is_file') and item.is_file():
                     # It's a file
                     item_name = item.name
                     target_name = item_name
-                    
+
                     target_file = target_dir / target_name
                     target_file.write_bytes(item.read_bytes())
                     copied_count += 1
-                    
+
                     if item_name != target_name:
                         print(f"✓ Copied {item_name} -> {target_name}")
                     else:
@@ -333,7 +330,7 @@ class ProjectInitializer:
                     self._copy_agents_from_traversable(item, sub_target)
         except Exception as e:
             print(f"⚠️  Error copying from traversable: {e}")
-        
+
         if copied_count > 0:
             print(f"✓ Successfully copied {copied_count} file(s) from agents/")
 
@@ -372,22 +369,20 @@ class ProjectInitializer:
 
     def _load_agent_spec(self, agent_name: str) -> str:
         """Load agent spec from root agents/ directory or fallback to packaged resources.
-        
+
         Search order:
           1. Root repo directory: <repo>/agents/<agent-name>.md (development)
           2. Packaged resources: drtrace_service.resources.agents (installed)
-        
+
         Args:
             agent_name: Name of the agent ('log-analysis', 'log-it', 'log-init', or 'log-help')
-            
+
         Returns:
             Agent spec content as string
-            
+
         Raises:
             FileNotFoundError: If agent spec not found
         """
-        from importlib import resources
-        import os
 
         agent_filename = f"{agent_name}.md"
 
@@ -546,12 +541,10 @@ config = ConfigSchema.load(Path("_drtrace/config.json"))
 
     def _copy_framework_guides(self) -> None:
         """Copy framework-specific integration guides to _drtrace/agents/integration-guides/.
-        
+
         Dynamically discovers all .md files in agents/integration-guides/ directory.
         Guides are stored in agents folder so agents can access them on client side.
         """
-        from importlib import resources
-        import os
         from pathlib import Path
 
         # Create integration-guides directory in agents folder
@@ -561,7 +554,7 @@ config = ConfigSchema.load(Path("_drtrace/config.json"))
         # Dynamically discover framework guides from agents/integration-guides/ directory
         root_guides_dir = Path(os.getcwd()) / "agents" / "integration-guides"
         framework_guides = []
-        
+
         # Try root agents/integration-guides/ first (development mode)
         if root_guides_dir.exists() and root_guides_dir.is_dir():
             guide_files = list(root_guides_dir.glob("*.md"))
@@ -569,7 +562,7 @@ config = ConfigSchema.load(Path("_drtrace/config.json"))
                 f.stem for f in guide_files
                 if f.is_file()
             ]
-        
+
         # If no guides found in development mode, try packaged resources (installed mode)
         if not framework_guides:
             try:
@@ -603,7 +596,7 @@ config = ConfigSchema.load(Path("_drtrace/config.json"))
             try:
                 guide_filename = f"{guide_name}.md"
                 guide_path = integration_guides_dir / guide_filename
-                
+
                 # Try root agents/integration-guides/ first (development mode)
                 root_guide_path = root_guides_dir / guide_filename
                 if root_guide_path.exists() and root_guide_path.is_file():
@@ -632,7 +625,7 @@ config = ConfigSchema.load(Path("_drtrace/config.json"))
                         except Exception:
                             # Skip if guide not found
                             continue
-                
+
                 guide_path.write_text(content)
                 print(f"✓ Copied framework guide: {guide_path}")
             except Exception as e:
@@ -647,7 +640,6 @@ config = ConfigSchema.load(Path("_drtrace/config.json"))
           - CMake links only spdlog::spdlog and CURL::libcurl.
           - Note: third_party/drtrace/ should be committed to git (unlike _drtrace/ which is gitignored)
         """
-        from pathlib import Path
         import shutil
 
         source_path = self._find_cpp_header_source()
@@ -759,7 +751,7 @@ config = ConfigSchema.load(Path("_drtrace/config.json"))
         # For C++ language, surface the header-only C++ client header
         if config.get("language") in ("cpp", "both"):
             header_path = self.project_root / "third_party" / "drtrace" / "drtrace_sink.hpp"
-            print(f"\n📋 C++ Files:")
+            print("\n📋 C++ Files:")
             print(f"   • {header_path}  (C++ header-only client)")
 
         print("\n📖 Next Steps:")
@@ -824,8 +816,8 @@ config = ConfigSchema.load(Path("_drtrace/config.json"))
         """Create a timestamped backup of a file if it exists."""
         if not path.exists():
             return
-        from datetime import datetime
         import shutil
+        from datetime import datetime
 
         timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
         backup_path = path.with_suffix(f"{path.suffix}.backup.{timestamp}")
@@ -945,8 +937,9 @@ config = ConfigSchema.load(Path("_drtrace/config.json"))
 
     def _apply_js_setup_suggestions(self, suggestion) -> None:
         """Apply JS/TS suggestions: add drtrace dependency and init snippets."""
-        from drtrace_service.setup_suggestions import JsSetupSuggestion  # type: ignore
         import json
+
+        from drtrace_service.setup_suggestions import JsSetupSuggestion  # type: ignore
 
         if not isinstance(suggestion, JsSetupSuggestion):
             return

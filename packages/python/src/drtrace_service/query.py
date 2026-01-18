@@ -1,9 +1,6 @@
 """Query module with daemon-only flow (Story 11-3: simplified architecture)."""
 
-import os
-import sys
 import time
-from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import List, Optional, Tuple
 
@@ -65,7 +62,7 @@ def query_logs(
         return [], QueryTimingInfo("none", 0), error_msg
 
     # Check daemon availability
-    start_time = time.time()
+    time.time()
     if not check_daemon_alive(timeout_ms=500):
         error_msg = (
             "DrTrace daemon is not running.\n\n"

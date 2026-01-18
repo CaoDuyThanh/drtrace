@@ -3,55 +3,45 @@ End-to-end tests for Python CLI
 Tests package installation, CLI availability, and agent file copying
 """
 
+import json
+import os
+import shutil
 import subprocess
 import sys
-import json
 import tempfile
-import shutil
-import os
 from pathlib import Path
 
 
 class TestPythonCLIInstallation:
     """Test Python CLI installation and basic functionality"""
-    
+
     @classmethod
     def setup_class(cls):
-        """Create a temporary venv for testing"""
+        """Create a temporary work directory for testing"""
         cls.tmpdir = tempfile.mkdtemp(prefix="drtrace-e2e-py-")
         cls.workdir = Path(cls.tmpdir) / "workdir"
         cls.workdir.mkdir(parents=True, exist_ok=True)
-        
-        cls.venv_dir = Path(cls.tmpdir) / "venv"
-        
-        # Create venv
-        subprocess.run(
-            [sys.executable, "-m", "venv", str(cls.venv_dir)],
-            check=True,
-            capture_output=True
-        )
-        
-        # Get python and pip executables
-        cls.python = cls.venv_dir / "bin" / "python"
-        cls.pip = cls.venv_dir / "bin" / "pip"
-        
-        # Install package immediately
+
+        # Use current environment instead of creating nested venv
+        cls.python = sys.executable
+        cls.pip = sys.executable.replace('python', 'pip') if 'python' in sys.executable else 'pip'
+
+        # Verify package is already installed in current environment
         result = subprocess.run(
-            [str(cls.pip), "install", "-e", 
-             "/media/thanh/data/Projects/drtrace/packages/python"],
+            [cls.python, "-c", "import drtrace_service; print('ok')"],
             check=False,
             capture_output=True,
             text=True
         )
         if result.returncode != 0:
-            raise RuntimeError(f"Failed to install package: {result.stderr}")
-    
+            raise RuntimeError(f"drtrace_service not available in current environment: {result.stderr}")
+
     @classmethod
     def teardown_class(cls):
-        """Clean up temporary venv"""
+        """Clean up temporary work directory"""
         if hasattr(cls, 'tmpdir') and os.path.exists(cls.tmpdir):
             shutil.rmtree(cls.tmpdir)
-    
+
     def run_cmd(self, *args, **kwargs):
         """Run command in venv and return result"""
         result = subprocess.run(
@@ -62,7 +52,7 @@ class TestPythonCLIInstallation:
             **kwargs
         )
         return result
-    
+
     def test_install_package(self):
         """Test package was installed successfully"""
         # Check if drtrace_service can be imported
@@ -73,7 +63,7 @@ class TestPythonCLIInstallation:
         )
         assert result.returncode == 0, f"Import failed: {result.stderr}"
         assert "ok" in result.stdout
-    
+
     def test_cli_help(self):
         """Test CLI help command"""
         result = self.run_cmd(str(self.python), "-m", "drtrace_service")
@@ -81,7 +71,7 @@ class TestPythonCLIInstallation:
         output = result.stdout + result.stderr
         assert "grep" in output, "grep command should be in help"
         assert "status" in output, "status command should be in help"
-    
+
     def test_grep_help(self):
         """Test grep command help"""
         result = self.run_cmd(
@@ -96,7 +86,7 @@ class TestPythonCLIInstallation:
         assert "-E" in output, "-E flag should be in grep help"
         assert "-c" in output, "-c flag should be in grep help"
         assert "--since" in output, "--since flag should be in grep help"
-    
+
     def test_status_command(self):
         """Test status command"""
         result = self.run_cmd(
@@ -108,12 +98,12 @@ class TestPythonCLIInstallation:
         output = (result.stdout + result.stderr).lower()
         # Status should work (daemon might be running or not)
         assert "status" in output or "unreachable" in output
-    
+
     def test_init_agent_copies_file(self):
         """Test init-agent copies agent file correctly"""
         workdir = Path(self.tmpdir) / "workdir"
         workdir.mkdir(exist_ok=True)
-        
+
         result = self.run_cmd(
             str(self.python),
             "-m",
@@ -122,14 +112,14 @@ class TestPythonCLIInstallation:
             "--agent",
             "log-analysis"
         )
-        
+
         assert result.returncode == 0, f"init-agent failed: {result.stderr}"
         assert "log-analysis.md" in result.stdout, "Should mention log-analysis.md"
-        
+
         # Verify file was created
         agent_file = workdir / "agents" / "log-analysis.md"
         assert agent_file.exists(), f"Agent file should be created at {agent_file}"
-        
+
         # Verify content
         content = agent_file.read_text()
         assert "log-analysis" in content, "Agent file should contain agent name"
@@ -184,7 +174,7 @@ class TestPythonCLIInstallation:
         assert env_config.get("project_name") == "e2e-app"
         assert env_config.get("application_id") == "e2e-app"
         assert "development" in env_config.get("environments", [])
-    
+
     def test_version_correct(self):
         """Test version is 0.5.0"""
         result = self.run_cmd(
@@ -194,7 +184,7 @@ class TestPythonCLIInstallation:
         )
         assert result.returncode == 0, f"Version check failed: {result.stderr}"
         assert result.stdout.strip() == "0.5.0"
-    
+
     def test_httpx_dependency_installed(self):
         """Test httpx dependency is installed"""
         result = self.run_cmd(
@@ -207,35 +197,31 @@ class TestPythonCLIInstallation:
 
 class TestPythonCLIGrepConstraint:
     """Test that grep command respects message_contains/message_regex constraint"""
-    
+
     @classmethod
     def setup_class(cls):
-        """Create venv and install package"""
+        """Create temporary work directory"""
         cls.tmpdir = tempfile.mkdtemp(prefix="drtrace-e2e-grep-")
-        cls.venv_dir = Path(cls.tmpdir) / "venv"
-        
-        subprocess.run(
-            [sys.executable, "-m", "venv", str(cls.venv_dir)],
-            check=True,
-            capture_output=True
+
+        # Use current environment instead of creating nested venv
+        cls.python = sys.executable
+
+        # Verify package is already installed in current environment
+        result = subprocess.run(
+            [cls.python, "-c", "import drtrace_service; print('ok')"],
+            check=False,
+            capture_output=True,
+            text=True
         )
-        
-        cls.python = cls.venv_dir / "bin" / "python"
-        
-        # Install package
-        subprocess.run(
-            [cls.python, "-m", "pip", "install", "-e", 
-             "/media/thanh/data/Projects/drtrace/packages/python"],
-            check=True,
-            capture_output=True
-        )
-    
+        if result.returncode != 0:
+            raise RuntimeError(f"drtrace_service not available in current environment: {result.stderr}")
+
     @classmethod
     def teardown_class(cls):
         """Clean up"""
         if hasattr(cls, 'tmpdir') and os.path.exists(cls.tmpdir):
             shutil.rmtree(cls.tmpdir)
-    
+
     def test_grep_without_e_flag(self):
         """Test grep without -E uses message_contains"""
         result = subprocess.run(

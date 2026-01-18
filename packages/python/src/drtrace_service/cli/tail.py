@@ -1,10 +1,8 @@
 """Tail command implementation for streaming logs."""
 
 import argparse
-import signal
 import sys
 import time
-from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional, Set
 
@@ -98,7 +96,7 @@ class TailFollower:
 
                 # Print status
                 print(f"\n[Tailing local file at {self.log_path}...]", file=sys.stderr)
-                print(f"[Press Ctrl+C to exit]", file=sys.stderr)
+                print("[Press Ctrl+C to exit]", file=sys.stderr)
 
                 # Follow new entries
                 try:

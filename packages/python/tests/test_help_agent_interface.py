@@ -7,7 +7,6 @@ from pathlib import Path
 import pytest
 
 from drtrace_service import help_agent_interface
-from drtrace_service.setup_guide import update_progress
 
 
 @pytest.mark.asyncio

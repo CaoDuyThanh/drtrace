@@ -169,25 +169,25 @@ async def ingest_logs(batch: LogBatch) -> Dict[str, int]:
   This slice validates the payload shape and delegates persistence to
   the storage layer.
   """
-  import time
   import logging
-  
+  import time
+
   logger = logging.getLogger(__name__)
   now = time.time()
-  
+
   # Check for suspicious timestamps
   for log in batch.logs:
     if log.ts > now + 300:  # More than 5 minutes in future
       logger.warning(f"Log timestamp {log.ts} is {log.ts - now:.1f}s in the future")
     if log.ts < now - 86400:  # More than 1 day in past
       logger.warning(f"Log timestamp {log.ts} is {now - log.ts:.1f}s in the past")
-  
+
   # Check for identical timestamps in batch
   timestamps = [log.ts for log in batch.logs]
   unique_timestamps = len(set(timestamps))
   if unique_timestamps == 1 and len(batch.logs) > 1:
     logger.warning(f"All {len(batch.logs)} logs in batch have identical timestamp {timestamps[0]}")
-  
+
   backend = storage.get_storage()
   backend.write_batch(batch)
   return {"accepted": len(batch.logs)}

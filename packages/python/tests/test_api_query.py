@@ -11,16 +11,15 @@ These tests validate the new API features:
 
 import re
 import time
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import pytest
 from fastapi.testclient import TestClient
 
 from drtrace_service import storage as storage_mod
-from drtrace_service.api import app, parse_time_param, encode_cursor, decode_cursor
+from drtrace_service.api import app, decode_cursor, encode_cursor, parse_time_param
 from drtrace_service.models import LogBatch, LogRecord
-
 
 # ============================================
 # Mock Storage for Testing

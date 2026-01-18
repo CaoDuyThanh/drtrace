@@ -1,11 +1,7 @@
 """Tests for output formatter module."""
 
 import json
-import sys
-from io import StringIO
 from unittest.mock import patch
-
-import pytest
 
 from drtrace_service.models import LogRecord
 from drtrace_service.output_formatter import ColorMode, LogFormatter, OutputFormat
@@ -184,7 +180,7 @@ class TestLogFormatter:
                 line_no=1,
                 exception_type=None,
                 stacktrace=None,
-    
+
             ),
             LogRecord(
                 ts=1609459300.0,
@@ -197,7 +193,7 @@ class TestLogFormatter:
                 line_no=2,
                 exception_type=None,
                 stacktrace=None,
-    
+
             ),
         ]
 
@@ -222,7 +218,7 @@ class TestLogFormatter:
                 line_no=1,
                 exception_type=None,
                 stacktrace=None,
-    
+
             ),
             LogRecord(
                 ts=1609459300.0,
@@ -235,7 +231,7 @@ class TestLogFormatter:
                 line_no=2,
                 exception_type=None,
                 stacktrace=None,
-    
+
             ),
         ]
 

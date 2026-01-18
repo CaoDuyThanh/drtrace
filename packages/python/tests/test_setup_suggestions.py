@@ -7,17 +7,17 @@ from pathlib import Path
 
 import pytest
 
-from drtrace_service.project_analyzer import ProjectAnalysis, analyze_project
+from drtrace_service.project_analyzer import analyze_project
 from drtrace_service.setup_suggestions import (
+    CmakeChange,
     CodeSnippet,
     ConfigChange,
+    CppSetupSuggestion,
+    IncludePoint,
     IntegrationPoint,
     PythonSetupSuggestion,
-    CppSetupSuggestion,
-    CmakeChange,
-    IncludePoint,
-    generate_python_setup,
     generate_cpp_setup,
+    generate_python_setup,
 )
 
 

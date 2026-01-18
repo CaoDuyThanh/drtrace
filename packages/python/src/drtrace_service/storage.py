@@ -9,7 +9,6 @@ from psycopg2.extras import Json, execute_batch
 
 from .models import LogBatch, LogRecord
 
-
 # Level ordering for min_level filter (Story API-3)
 LEVEL_ORDER = {
     "DEBUG": 0,
@@ -325,12 +324,12 @@ def _record_to_row(record: LogRecord) -> tuple:
 
 def get_default_log_path() -> Optional[Path]:
   """Get the default log file path for fallback mode.
-  
+
   Checks for DRTRACE_LOG_FILE env var, then looks in standard locations:
   - ./_drtrace/logs/drtrace.log
   - ./logs/drtrace.log
   - /tmp/drtrace.log
-  
+
   Returns:
       Path to log file if found and readable, None otherwise
   """
@@ -340,17 +339,17 @@ def get_default_log_path() -> Optional[Path]:
     log_path = Path(log_file_env).expanduser()
     if log_path.exists() and log_path.is_file():
       return log_path
-  
+
   # Try standard locations
   candidates = [
     Path.cwd() / "_drtrace" / "logs" / "drtrace.log",
     Path.cwd() / "logs" / "drtrace.log",
     Path("/tmp/drtrace.log"),
   ]
-  
+
   for candidate in candidates:
     if candidate.exists() and candidate.is_file():
       return candidate
-  
+
   return None
 

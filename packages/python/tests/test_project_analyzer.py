@@ -2,14 +2,10 @@
 Tests for the project structure analyzer module.
 """
 
-import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-import pytest
-
 from drtrace_service.project_analyzer import (
-    ProjectAnalysis,
     analyze_project,
     detect_build_system,
     detect_existing_logging,

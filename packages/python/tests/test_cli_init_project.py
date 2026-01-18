@@ -5,7 +5,7 @@ Tests for the init-project CLI workflow.
 import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -496,7 +496,7 @@ class TestCopyFrameworkGuides:
             initializer = ProjectInitializer(Path(tmpdir))
             initializer._create_directory_structure()
             initializer._copy_framework_guides()
-            
+
             guides_dir = initializer.drtrace_dir / "agents" / "integration-guides"
             assert guides_dir.exists(), "Integration guides directory should be created"
             assert guides_dir.is_dir(), "Integration guides should be a directory"
@@ -506,7 +506,7 @@ class TestCopyFrameworkGuides:
         with TemporaryDirectory() as tmpdir:
             initializer = ProjectInitializer(Path(tmpdir))
             initializer._create_directory_structure()
-            
+
             # Mock importlib.resources to return test guide
             with patch('drtrace_service.cli.init_project.resources') as mock_resources:
                 # Create a mock file structure
@@ -516,12 +516,12 @@ class TestCopyFrameworkGuides:
                     MagicMock(stem="cpp-ros-integration", suffix=".md", is_file=lambda: True)
                 ]
                 mock_file.joinpath.return_value.read_text.return_value = "# C++ ROS Integration Guide"
-                
+
                 mock_resources.files.return_value.joinpath.return_value = mock_file
-                
+
                 # Call the method
                 initializer._copy_framework_guides()
-            
+
             # Verify guide was copied (directory should exist even if no guides found)
             guides_dir = initializer.drtrace_dir / "agents" / "integration-guides"
             assert guides_dir.exists(), "Integration guides directory should exist"
@@ -531,14 +531,14 @@ class TestCopyFrameworkGuides:
         with TemporaryDirectory() as tmpdir:
             initializer = ProjectInitializer(Path(tmpdir))
             initializer._create_directory_structure()
-            
+
             # Mock importlib.resources to raise FileNotFoundError
             with patch('drtrace_service.cli.init_project.resources') as mock_resources:
                 mock_resources.files.return_value.joinpath.return_value.exists.return_value = False
-                
+
                 # Should not raise exception
                 initializer._copy_framework_guides()
-            
+
             # Directory should still be created
             guides_dir = initializer.drtrace_dir / "agents" / "integration-guides"
             assert guides_dir.exists(), "Integration guides directory should exist even if no guides found"

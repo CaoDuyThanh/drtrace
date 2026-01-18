@@ -1,5 +1,4 @@
 """Tests for message_regex feature (Epic 11.1)."""
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -190,11 +189,11 @@ class TestAPIDocumentation:
         """API should document message_regex parameter."""
         openapi_schema = api.app.openapi()
         logs_query_params = openapi_schema["paths"]["/logs/query"]["get"]["parameters"]
-        
+
         param_names = [p["name"] for p in logs_query_params]
         assert "message_regex" in param_names
         assert "message_contains" in param_names
-        
+
         # Find message_regex parameter and check description
         regex_param = next(p for p in logs_query_params if p["name"] == "message_regex")
         assert "mutually exclusive" in regex_param["description"].lower() or \

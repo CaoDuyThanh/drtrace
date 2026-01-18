@@ -1,12 +1,8 @@
 """Tests for query module with daemon-only flow (Story 11-3)."""
 
-import os
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
-
-from drtrace_service.query import query_logs, QueryTimingInfo
-from drtrace_service.models import LogRecord
+from drtrace_service.query import QueryTimingInfo, query_logs
 
 
 class TestQueryTimingInfo:

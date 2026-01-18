@@ -6,11 +6,10 @@ Defines language-specific setup steps and basic progress tracking helpers.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
-
-import json
 
 
 @dataclass

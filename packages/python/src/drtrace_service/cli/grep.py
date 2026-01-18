@@ -14,7 +14,6 @@ import httpx
 from drtrace_service.daemon_health import check_daemon_alive
 from drtrace_service.storage import get_default_log_path
 
-
 # Cache for recent log reads to avoid repeated disk scans
 _log_cache: dict = {}
 _cache_ttl: float = 30.0  # 30 seconds
@@ -39,7 +38,7 @@ def _cache_log(log_path: Path, lines: List[str]) -> None:
 
 def _parse_time_duration(duration_str: str) -> Optional[timedelta]:
     """Parse duration string like '30m', '1h', '2d', '7d'.
-    
+
     Returns:
         timedelta object or None if invalid
     """
@@ -47,7 +46,7 @@ def _parse_time_duration(duration_str: str) -> Optional[timedelta]:
     match = re.match(r'^(\d+)([mhd])$', duration_str.strip().lower())
     if not match:
         return None
-    
+
     value, unit = int(match.group(1)), match.group(2)
     if unit == 'm':
         return timedelta(minutes=value)
@@ -60,9 +59,9 @@ def _parse_time_duration(duration_str: str) -> Optional[timedelta]:
 
 def _parse_log_line(line: str) -> Optional[Tuple[datetime, str, str, str]]:
     """Parse log line to extract timestamp, service, level, message.
-    
+
     Expected format: [YYYY-MM-DD HH:MM:SS] [SERVICE] [LEVEL] MESSAGE
-    
+
     Returns:
         Tuple of (datetime, service, level, message) or None if parse fails
     """
@@ -71,7 +70,7 @@ def _parse_log_line(line: str) -> Optional[Tuple[datetime, str, str, str]]:
     match = re.match(pattern, line)
     if not match:
         return None
-    
+
     try:
         timestamp = datetime.strptime(match.group(1), '%Y-%m-%d %H:%M:%S')
         return (timestamp, match.group(2), match.group(3), match.group(4))
@@ -88,7 +87,7 @@ def _should_include_line(
     since: Optional[timedelta] = None
 ) -> bool:
     """Determine if a line should be included based on filters.
-    
+
     Args:
         line: Log line to test
         pattern: Regex pattern to match
@@ -96,7 +95,7 @@ def _should_include_line(
         invert_match: If True, invert match (include non-matching)
         extended_regex: If True, use POSIX extended regex
         since: If provided, only include lines after this duration
-        
+
     Returns:
         True if line should be included, False otherwise
     """
@@ -109,7 +108,7 @@ def _should_include_line(
             cutoff = datetime.now() - since
             if timestamp < cutoff:
                 return False
-    
+
     # Pattern matching
     flags = re.IGNORECASE if ignore_case else 0
     try:
@@ -122,7 +121,7 @@ def _should_include_line(
     except re.error:
         # Invalid regex pattern
         return False
-    
+
     # Apply invert logic
     if invert_match:
         return not match
@@ -132,10 +131,10 @@ def _should_include_line(
 
 def grep_command(args: Optional[List[str]] = None) -> int:
     """Execute grep command.
-    
+
     Args:
         args: Command-line arguments (for testing)
-        
+
     Returns:
         Exit code: 0 (matches found), 1 (no matches), 2 (error)
     """
@@ -152,19 +151,19 @@ def grep_command(args: Optional[List[str]] = None) -> int:
     parser.add_argument('--since', default=None, help='Time range: 30m/1h/2d/7d')
     parser.add_argument('--full-search', action='store_true', help='Allow searches >30d without limit')
     parser.add_argument('--json', action='store_true', help='Output in JSON format')
-    
+
     try:
         parsed_args = parser.parse_args(args)
     except SystemExit:
         return 2
-    
+
     # Validate time range
     if parsed_args.since:
         since_td = _parse_time_duration(parsed_args.since)
         if not since_td:
             print(f"Error: Invalid time duration '{parsed_args.since}'", file=sys.stderr)
             return 2
-        
+
         if since_td.days > 30 and not parsed_args.full_search:
             print(
                 f"Error: Time range {parsed_args.since} exceeds 30 days. "
@@ -174,44 +173,44 @@ def grep_command(args: Optional[List[str]] = None) -> int:
             return 2
     else:
         since_td = None
-    
+
     # Check if daemon is available
     daemon_available = check_daemon_alive(timeout_ms=500)
-    
+
     if daemon_available:
         # Use daemon HTTP query path (Story 11-2: wire -E flag to message_regex)
         try:
             daemon_host = os.getenv("DRTRACE_DAEMON_HOST", "localhost")
             daemon_port = os.getenv("DRTRACE_DAEMON_PORT", "8001")
             daemon_url = f"http://{daemon_host}:{daemon_port}/logs/query"
-            
+
             # Build query parameters
             params = {
                 "since": parsed_args.since if parsed_args.since else "5m",
             }
-            
+
             # Use message_regex if -E flag provided, else message_contains (Epic 11.1, 11.2)
             if parsed_args.extended_regex:
                 params["message_regex"] = parsed_args.pattern
             else:
                 params["message_contains"] = parsed_args.pattern
-            
+
             # Query daemon using httpx
             try:
                 response = httpx.get(daemon_url, params=params, timeout=5.0)
                 response.raise_for_status()
                 data = response.json()
-            except (httpx.RequestError, httpx.HTTPStatusError) as e:
+            except (httpx.RequestError, httpx.HTTPStatusError):
                 # Daemon query failed, fall back to local file
                 raise
             else:
                 # Process daemon results
                 from drtrace_service.models import LogRecord
-                
+
                 results = []
                 for record_dict in data.get("results", []):
                     record = LogRecord(**record_dict)
-                    
+
                     # Apply additional filters that weren't sent to API (invert_match, line_number)
                     if parsed_args.invert_match:
                         if parsed_args.extended_regex:
@@ -223,18 +222,18 @@ def grep_command(args: Optional[List[str]] = None) -> int:
                             message_lower = record.message.lower() if parsed_args.ignore_case else record.message
                             if pattern_lower in message_lower:
                                 continue
-                    
+
                     # Format output
                     ts_str = datetime.fromtimestamp(record.ts).strftime('%Y-%m-%d %H:%M:%S')
                     service_str = f"[{record.service_name}]" if record.service_name else ""
                     msg = f"[{ts_str}] {service_str} [{record.level}] {record.message}"
-                    
+
                     if parsed_args.line_number:
                         # Use timestamp as pseudo line number for daemon results
                         results.append(f"{int(record.ts)}:{msg}")
                     else:
                         results.append(msg)
-                
+
                 # Output results
                 if parsed_args.count:
                     print(len(results))
@@ -243,18 +242,18 @@ def grep_command(args: Optional[List[str]] = None) -> int:
                         print(result)
                 else:
                     return 1
-                
+
                 return 0
-        except Exception as e:
+        except Exception:
             # Daemon query failed, fall back to local file
             pass
-    
+
     # Use local file fallback
     log_path = get_default_log_path()
     if not log_path or not log_path.exists():
         print(f"Error: Log file not found at {log_path}", file=sys.stderr)
         return 2
-    
+
     # Check cache first
     lines = _get_cached_log(log_path)
     if lines is None:
@@ -265,7 +264,7 @@ def grep_command(args: Optional[List[str]] = None) -> int:
         except (IOError, OSError) as e:
             print(f"Error: Could not read log file: {e}", file=sys.stderr)
             return 2
-    
+
     # Apply filters
     matches = []
     for line_num, line in enumerate(lines, start=1):
@@ -282,7 +281,7 @@ def grep_command(args: Optional[List[str]] = None) -> int:
                 matches.append(f"{line_num}:{line}")
             else:
                 matches.append(line)
-    
+
     # Output results
     if parsed_args.count:
         print(len(matches))
@@ -292,5 +291,5 @@ def grep_command(args: Optional[List[str]] = None) -> int:
     else:
         # No matches - empty output, exit code 1
         return 1
-    
+
     return 0

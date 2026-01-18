@@ -3,9 +3,6 @@
  * Matches Python implementation in packages/python/src/drtrace_service/cli/grep.py
  */
 
-import * as fs from 'fs';
-import * as path from 'path';
-
 interface GrepOptions {
   pattern: string;
   ignoreCase?: boolean;

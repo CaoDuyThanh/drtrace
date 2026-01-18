@@ -2,8 +2,8 @@
 Unit tests for setup_guide module.
 """
 
-from pathlib import Path
 import json
+from pathlib import Path
 
 from drtrace_service.setup_guide import (
     SetupStep,

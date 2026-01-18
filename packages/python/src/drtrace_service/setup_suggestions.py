@@ -10,7 +10,7 @@ import json
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import List, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional
 
 if TYPE_CHECKING:
     from .project_analyzer import ProjectAnalysis
@@ -115,7 +115,7 @@ def generate_python_setup(
     Returns:
         PythonSetupSuggestion with integration points, code snippets, config changes, and verification steps
     """
-    from .project_analyzer import analyze_project, ProjectAnalysis
+    from .project_analyzer import analyze_project
 
     if analysis is None:
         analysis = analyze_project(project_root)
@@ -144,7 +144,7 @@ def generate_cpp_setup(
 
     This focuses on CMake FetchContent integration and spdlog sink wiring.
     """
-    from .project_analyzer import analyze_project, ProjectAnalysis
+    from .project_analyzer import analyze_project
 
     if analysis is None:
         analysis = analyze_project(project_root)
@@ -166,7 +166,7 @@ def generate_js_setup(
     project_root: Path, analysis: Optional["ProjectAnalysis"] = None
 ) -> JsSetupSuggestion:
     """Generate JavaScript/TypeScript setup suggestions based on project analysis."""
-    from .project_analyzer import analyze_project, ProjectAnalysis
+    from .project_analyzer import analyze_project
 
     if analysis is None:
         analysis = analyze_project(project_root)
@@ -194,10 +194,10 @@ def _resolve_application_id(project_root: Path) -> str:
     1. Check DRTRACE_APPLICATION_ID env var (highest priority)
     2. Fall back to _drtrace/config.json application_id
     3. Last resort: "my-app"
-    
+
     Args:
         project_root: Root directory of the project
-        
+
     Returns:
         Effective application ID string
     """
@@ -205,7 +205,7 @@ def _resolve_application_id(project_root: Path) -> str:
     env_app_id = os.getenv("DRTRACE_APPLICATION_ID")
     if env_app_id:
         return env_app_id
-    
+
     # Priority 2: Read from _drtrace/config.json
     config_path = project_root / "_drtrace" / "config.json"
     if config_path.exists():
@@ -224,7 +224,7 @@ def _resolve_application_id(project_root: Path) -> str:
         except (json.JSONDecodeError, OSError, KeyError):
             # If config file is malformed or missing fields, fall through to default
             pass
-    
+
     # Priority 3: Default fallback
     return "my-app"
 
@@ -235,10 +235,10 @@ def _resolve_daemon_url(project_root: Path) -> str:
     1. Check DRTRACE_DAEMON_URL env var (highest priority)
     2. Fall back to _drtrace/config.json daemon_url or daemonUrl
     3. Last resort: "http://localhost:8001/logs/ingest"
-    
+
     Args:
         project_root: Root directory of the project
-        
+
     Returns:
         Effective daemon URL string
     """
@@ -252,7 +252,7 @@ def _resolve_daemon_url(project_root: Path) -> str:
             else:
                 return f"{env_daemon_url}/logs/ingest"
         return env_daemon_url
-    
+
     # Priority 2: Read from _drtrace/config.json
     config_path = project_root / "_drtrace" / "config.json"
     if config_path.exists():
@@ -283,7 +283,7 @@ def _resolve_daemon_url(project_root: Path) -> str:
         except (json.JSONDecodeError, OSError, KeyError):
             # If config file is malformed or missing fields, fall through to default
             pass
-    
+
     # Priority 3: Default fallback
     return "http://localhost:8001/logs/ingest"
 
@@ -349,14 +349,14 @@ def _generate_cmake_suggestions(
       - If spdlog not detected: Only require libcurl (for direct API)
     """
     from .project_analyzer import detect_existing_logging
-    
+
     # Look for top-level CMakeLists.txt
     cmake_file = project_root / "CMakeLists.txt"
     if not cmake_file.exists():
         return
 
     try:
-        content = cmake_file.read_text()
+        cmake_file.read_text()
     except Exception:
         return
 
@@ -365,7 +365,7 @@ def _generate_cmake_suggestions(
 
     # Detect if project uses spdlog
     uses_spdlog = detect_existing_logging(project_root, "cpp")
-    
+
     if uses_spdlog:
         # Pattern 1: With spdlog (spdlog adapter)
         cmake_block = """# DrTrace C++ client (header-only)
@@ -385,14 +385,14 @@ find_package(spdlog QUIET)
 if(NOT spdlog_FOUND)
     # Fallback: Use FetchContent to download and build spdlog automatically
     include(FetchContent)
-    
+
     FetchContent_Declare(
         spdlog
         GIT_REPOSITORY https://github.com/gabime/spdlog.git
         GIT_TAG        v1.13.0
         GIT_SUBMODULES ""
     )
-    
+
     FetchContent_MakeAvailable(spdlog)
 endif()
 
@@ -448,7 +448,7 @@ def _generate_cpp_code_suggestions(
 ) -> None:
     """Generate C++ code integration suggestions (detects spdlog usage and suggests appropriate pattern)."""
     from .project_analyzer import detect_existing_logging
-    
+
     # Prefer main.cpp/app.cpp as integration points
     entry_points = analysis.entry_points.get("cpp", [])
     preferred_names = ["main.cpp", "app.cpp"]
@@ -471,7 +471,7 @@ def _generate_cpp_code_suggestions(
 
     # Detect if project uses spdlog
     uses_spdlog = detect_existing_logging(project_root, "cpp")
-    
+
     if uses_spdlog:
         # Pattern 1: spdlog adapter
         code = f"""#include "third_party/drtrace/drtrace_sink.hpp"
@@ -688,9 +688,9 @@ def _find_integration_points(
         )
 
         reason = (
-            f"Main entry point - best place to initialize logging for the entire application"
+            "Main entry point - best place to initialize logging for the entire application"
             if integration_file.name in ["main.py", "app.py", "run.py"]
-            else f"Package initialization - good place to set up logging for this package"
+            else "Package initialization - good place to set up logging for this package"
         )
 
         suggestion.integration_points.append(
@@ -727,14 +727,14 @@ def _find_insertion_line(file_path: Path) -> int:
 def _generate_setup_code(has_existing_logging: bool, project_root: Path) -> str:
     """
     Generate setup code snippet.
-    
+
     Args:
         has_existing_logging: Whether the project already has logging setup
         project_root: Root directory of the project (for resolving application ID)
     """
     # Resolve application ID at agent-time
     app_id = _resolve_application_id(project_root)
-    
+
     if has_existing_logging:
         # Integration with existing logging
         return f"""# Setup DrTrace (adds handler without removing existing handlers)
@@ -787,7 +787,7 @@ def _generate_code_snippets(
     """Generate code snippets for different use cases."""
     # Resolve application ID at agent-time
     app_id = _resolve_application_id(project_root)
-    
+
     # Root logger pattern (already in integration points, but add as snippet too)
     suggestion.code_snippets.append(
         CodeSnippet(
@@ -864,7 +864,7 @@ def _generate_config_suggestions(
     """Generate configuration change suggestions."""
     # Resolve application ID at agent-time
     app_id = _resolve_application_id(project_root)
-    
+
     # Environment variable suggestion
     env_file = project_root / ".env"
     env_example_file = project_root / ".env.example"
@@ -921,7 +921,7 @@ DRTRACE_DAEMON_PORT=8001
     # Check for requirements.txt or pyproject.toml
     requirements_file = project_root / "requirements.txt"
     pyproject_file = project_root / "pyproject.toml"
-    
+
     if requirements_file.exists():
         # Check if drtrace is already in requirements.txt
         try:

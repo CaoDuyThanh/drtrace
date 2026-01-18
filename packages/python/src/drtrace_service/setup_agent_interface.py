@@ -7,11 +7,10 @@ suggestions and validation reports for multi-language projects.
 
 from __future__ import annotations
 
-from dataclasses import asdict
 from pathlib import Path
 from typing import List, Optional
 
-from .project_analyzer import ProjectAnalysis, analyze_project
+from .project_analyzer import analyze_project
 from .setup_suggestions import (
     CppSetupSuggestion,
     JsSetupSuggestion,

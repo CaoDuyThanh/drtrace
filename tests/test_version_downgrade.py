@@ -2,10 +2,6 @@ import sys
 from pathlib import Path
 import pytest
 
-# Ensure project root is on import path
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(PROJECT_ROOT))
-
 from scripts.version_downgrade import (
 	downgrade_major,
 	downgrade_minor,
@@ -14,6 +10,10 @@ from scripts.version_downgrade import (
 	format_version,
 	validate_version_bounds,
 )
+
+# Ensure project root is on import path
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(PROJECT_ROOT))
 
 
 class TestVersionDowngrade:

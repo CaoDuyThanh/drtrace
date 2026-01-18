@@ -26,7 +26,7 @@ class DaemonHealthChecker:
 
     def _get_daemon_config(self) -> Tuple[str, int]:
         """Get daemon host and port from environment or defaults.
-        
+
         Returns:
             Tuple of (host, port)
         """
@@ -36,7 +36,7 @@ class DaemonHealthChecker:
 
     def _get_timeout_ms(self) -> int:
         """Get daemon check timeout from environment or default (500ms).
-        
+
         Returns:
             Timeout in milliseconds
         """
@@ -44,10 +44,10 @@ class DaemonHealthChecker:
 
     async def _check_daemon_async(self, timeout_ms: int) -> bool:
         """Check daemon health via HTTP GET (async).
-        
+
         Args:
             timeout_ms: Timeout in milliseconds
-            
+
         Returns:
             True if daemon responds with HTTP 200, False otherwise
         """
@@ -56,18 +56,18 @@ class DaemonHealthChecker:
         timeout_seconds = timeout_ms / 1000.0
 
         start_time = time.time()
-        
+
         try:
             logger.debug(f"Checking daemon health: GET {url} (timeout={timeout_ms}ms)")
-            
+
             async with httpx.AsyncClient() as client:
                 response = await asyncio.wait_for(
                     client.get(url, timeout=timeout_seconds),
                     timeout=timeout_seconds
                 )
-                
+
                 elapsed_ms = int((time.time() - start_time) * 1000)
-                
+
                 if response.status_code == 200:
                     logger.debug(f"Daemon health check: OK (response time: {elapsed_ms}ms)")
                     return True
@@ -77,7 +77,7 @@ class DaemonHealthChecker:
                         f"time={elapsed_ms}ms)"
                     )
                     return False
-                    
+
         except asyncio.TimeoutError:
             elapsed_ms = int((time.time() - start_time) * 1000)
             logger.debug(
@@ -85,7 +85,7 @@ class DaemonHealthChecker:
                 f"elapsed={elapsed_ms}ms)"
             )
             return False
-            
+
         except (httpx.ConnectError, httpx.RequestError, OSError) as e:
             elapsed_ms = int((time.time() - start_time) * 1000)
             logger.debug(
@@ -96,12 +96,12 @@ class DaemonHealthChecker:
 
     def check_daemon_alive(self, timeout_ms: Optional[int] = None) -> bool:
         """Check if daemon is alive (synchronous wrapper).
-        
+
         Uses 2-second cache to avoid repeated requests. Non-blocking via asyncio.
-        
+
         Args:
             timeout_ms: Timeout in milliseconds. If None, uses env var or default 500ms.
-            
+
         Returns:
             True if daemon is healthy and responsive, False otherwise
         """
@@ -151,12 +151,12 @@ class DaemonHealthChecker:
         self, timeout_ms: Optional[int] = None
     ) -> bool:
         """Check if daemon is alive (async version).
-        
+
         Uses 2-second cache to avoid repeated requests.
-        
+
         Args:
             timeout_ms: Timeout in milliseconds. If None, uses env var or default 500ms.
-            
+
         Returns:
             True if daemon is healthy and responsive, False otherwise
         """
@@ -192,10 +192,10 @@ _health_checker = DaemonHealthChecker()
 
 def check_daemon_alive(timeout_ms: Optional[int] = None) -> bool:
     """Convenience function using global health checker instance.
-    
+
     Args:
         timeout_ms: Timeout in milliseconds. If None, uses env var or default 500ms.
-        
+
     Returns:
         True if daemon is healthy and responsive, False otherwise
     """
@@ -204,10 +204,10 @@ def check_daemon_alive(timeout_ms: Optional[int] = None) -> bool:
 
 async def check_daemon_alive_async(timeout_ms: Optional[int] = None) -> bool:
     """Convenience async function using global health checker instance.
-    
+
     Args:
         timeout_ms: Timeout in milliseconds. If None, uses env var or default 500ms.
-        
+
     Returns:
         True if daemon is healthy and responsive, False otherwise
     """

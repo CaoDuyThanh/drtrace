@@ -1,8 +1,6 @@
 import logging
 from typing import Any, Dict, List
 
-import pytest
-
 from drtrace_client import ClientConfig, setup_logging  # type: ignore[import]
 
 

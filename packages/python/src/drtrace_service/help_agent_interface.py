@@ -13,10 +13,14 @@ from typing import List
 from .setup_guide import (
     SetupStep,
     check_step_complete,
-    get_current_step as guide_get_current_step,
-    get_next_step as guide_get_next_step,
     get_setup_steps,
     update_progress,
+)
+from .setup_guide import (
+    get_current_step as guide_get_current_step,
+)
+from .setup_guide import (
+    get_next_step as guide_get_next_step,
 )
 
 

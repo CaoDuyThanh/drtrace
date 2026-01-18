@@ -53,7 +53,7 @@ class ClientConfig:
     """
 
     app_id = application_id or os.getenv("DRTRACE_APPLICATION_ID")
-    
+
     # Priority 3: Try reading from config file
     if not app_id:
       config_path = Path("_drtrace/config.json")
@@ -63,7 +63,7 @@ class ClientConfig:
           app_id = config.get("application_id") or config.get("applicationId")
         except Exception:
           pass
-    
+
     # Priority 4: Final fallback to default value (ensures application never crashes)
     # CRITICAL: Must use same default value as C++ and JavaScript: "my-app"
     if not app_id:

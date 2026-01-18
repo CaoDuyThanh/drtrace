@@ -8,8 +8,7 @@ import json
 import sys
 from datetime import datetime
 from enum import Enum
-from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Union
 
 from drtrace_service.models import LogRecord
 

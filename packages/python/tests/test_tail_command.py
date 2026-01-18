@@ -3,12 +3,9 @@
 import os
 import tempfile
 from pathlib import Path
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 from drtrace_service.cli.tail import TailFollower, tail_command
-from drtrace_service.output_formatter import ColorMode
 
 
 class TestTailFollower:

@@ -6,11 +6,9 @@ without importing the entire setup.py module. We replicate the method implementa
 here for testing purposes.
 """
 
-from pathlib import Path
-from unittest.mock import patch, MagicMock
 import shutil
 import tempfile
-import sys
+from pathlib import Path
 
 
 def _copy_integration_guides_test_impl(setup_dir: Path):
@@ -60,31 +58,31 @@ class TestCopyIntegrationGuides:
         """Test that integration guides are copied during build."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
-            
+
             # Create directory structure matching monorepo layout:
             # wwi/
             #   packages/
             #     python/  <- setup_dir
             #   agents/
             #     integration-guides/  <- source_guides_dir
-            
+
             # Create setup directory (represents packages/python/)
             setup_dir = tmp_path / "packages" / "python"
             setup_dir.mkdir(parents=True)
-            
+
             # Create source directory (represents agents/integration-guides/)
             # setup_dir.parent.parent = tmp_path (project root)
             source_guides_dir = tmp_path / "agents" / "integration-guides"
             source_guides_dir.mkdir(parents=True)
-            
+
             # Create test guide file
             test_guide = source_guides_dir / "test-guide.md"
             test_content = "# Test Guide\n\nThis is a test integration guide."
             test_guide.write_text(test_content)
-            
+
             # Call the test implementation
             result = _copy_integration_guides_test_impl(setup_dir)
-            
+
             # Verify file was copied
             target_guide = setup_dir / "src" / "drtrace_service" / "resources" / "agents" / "integration-guides" / "test-guide.md"
             assert target_guide.exists(), f"Integration guide was not copied. Expected at {target_guide}"
@@ -95,15 +93,15 @@ class TestCopyIntegrationGuides:
         """Test graceful handling when source directory doesn't exist."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
-            
+
             # Create setup directory but no agents directory
             # Match monorepo structure: packages/python/
             setup_dir = tmp_path / "packages" / "python"
             setup_dir.mkdir(parents=True)
-            
+
             # Call the test implementation
             result = _copy_integration_guides_test_impl(setup_dir)
-            
+
             # Verify warning was printed and method returned False
             captured = capsys.readouterr()
             assert "Warning" in captured.out or "not found" in captured.out.lower()
@@ -113,19 +111,19 @@ class TestCopyIntegrationGuides:
         """Test graceful handling when source directory is empty."""
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp_path = Path(tmpdir)
-            
+
             # Create setup directory (match monorepo structure)
             setup_dir = tmp_path / "packages" / "python"
             setup_dir.mkdir(parents=True)
-            
+
             # Create empty source directory
             source_guides_dir = tmp_path / "agents" / "integration-guides"
             source_guides_dir.mkdir(parents=True)
             # Don't create any .md files
-            
+
             # Call the test implementation
             result = _copy_integration_guides_test_impl(setup_dir)
-            
+
             # Verify warning was printed and method returned False
             captured = capsys.readouterr()
             assert "Warning" in captured.out or "No integration guide files" in captured.out
