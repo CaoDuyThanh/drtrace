@@ -36,4 +36,5 @@ jobs:
         npm run build
     - name: Publish to npm
       run: |
+        cd packages/javascript/drtrace-client
         npm publish --provenance --access public
